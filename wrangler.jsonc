@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "webapp",
+  "compatibility_date": "2025-12-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "dist/worker/index.js",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "webapp-production",
+      "database_id": "placeholder-will-be-updated-after-creation"
+    }
+  ],
+  "assets": {
+    "directory": "dist/public"
+  }
+}
