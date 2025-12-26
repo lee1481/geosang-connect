@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { CategoryType, Contact, Staff, ConstructionRecord } from './types';
 import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData } from './geminiService';
+import * as XLSX from 'xlsx';
 
 interface AuthUser {
   id: string;
@@ -153,27 +154,46 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     const file = event.target.files?.[0];
     if (!file) return;
+    
+    const fileName = file.name.toLowerCase();
+    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+    
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const rows = text.split('\n');
       const newContacts: Contact[] = [];
-      
       const isOutsourceCategory = activeCategory === CategoryType.OUTSOURCE;
-
+      
+      let rows: any[] = [];
+      
+      if (isExcel) {
+        // Excel 파일 처리
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      } else {
+        // CSV 파일 처리 (다양한 인코딩 지원)
+        const text = e.target?.result as string;
+        rows = text.split('\n').map(row => 
+          row.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+        );
+      }
+      
+      // 데이터 파싱
       for (let i = 1; i < rows.length; i++) {
-        if (!rows[i].trim()) continue;
-        const cols = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        if (!rows[i] || (Array.isArray(rows[i]) && rows[i].every((c: any) => !c))) continue;
+        const cols = Array.isArray(rows[i]) ? rows[i] : [];
         
         if (isOutsourceCategory) {
           if (cols.length >= 2) {
             const [subCat, name, phone, region, resident, account, features] = cols;
             newContacts.push({
-              id: 'csv-out-' + Date.now() + '-' + i,
+              id: 'csv-out-' + Date.now() + '-' + i + '-' + Math.random().toString(36).substr(2, 9),
               category: CategoryType.OUTSOURCE,
               subCategory: subCat || '시공일당',
               staffList: [{
-                id: 's-out-' + Date.now() + '-' + i,
+                id: 's-out-' + Date.now() + '-' + i + '-' + Math.random().toString(36).substr(2, 9),
                 name: name || '성명미상',
                 phone: phone || '',
                 region: region || '',
@@ -181,7 +201,8 @@ const App: React.FC = () => {
                 bankAccount: account || '',
                 features: features || '',
                 position: '',
-                email: ''
+                email: '',
+                rating: 5
               }]
             });
           }
@@ -189,7 +210,7 @@ const App: React.FC = () => {
           if (cols.length >= 1) {
             const [brand, ind, addr, mainPhone, mainEmail, home, sName, sPos, sPhone, sEmail, sDept] = cols;
             newContacts.push({
-              id: 'csv-' + Date.now() + '-' + i,
+              id: 'csv-' + Date.now() + '-' + i + '-' + Math.random().toString(36).substr(2, 9),
               category: activeCategory,
               brandName: brand || '상호미상',
               industry: ind || '',
@@ -198,22 +219,30 @@ const App: React.FC = () => {
               email: mainEmail || '',
               homepage: home || '',
               staffList: sName ? [{ 
-                id: 's-' + Date.now() + '-' + i, 
+                id: 's-' + Date.now() + '-' + i + '-' + Math.random().toString(36).substr(2, 9),
                 name: sName, 
                 position: sPos || '', 
                 phone: sPhone || '', 
                 email: sEmail || '', 
-                department: sDept || '' 
+                department: sDept || '',
+                rating: 5
               }] : []
             });
           }
         }
       }
+      
       setContacts(prev => [...prev, ...newContacts]);
-      alert(`${newContacts.length}개 항목 등록 완료`);
+      alert(`✅ ${newContacts.length}개 항목 자동 등록 완료!\n\n파일: ${file.name}\n카테고리: ${getCategoryName(activeCategory)}`);
       if (event.target) event.target.value = '';
     };
-    reader.readAsText(file, 'euc-kr');
+    
+    if (isExcel) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      // CSV - UTF-8, EUC-KR 등 자동 감지
+      reader.readAsText(file, 'euc-kr');
+    }
   };
 
   const handleCSVDownload = () => {
@@ -898,11 +927,11 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100 font-sans tracking-tight text-slate-900">
-      <aside className={`fixed inset-y-0 left-0 w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-[60] transition-transform duration-300 lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-[60] relative">
         <div className="p-6 lg:p-8">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-xl lg:text-2xl font-black tracking-tighter flex items-center gap-2"><Layers className="text-blue-400" /> 거상커넥트</h1>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 text-slate-400"><X size={20}/></button>
+
           </div>
           <div className="flex flex-col gap-1 mt-1">
             <div className="flex items-center gap-2">
@@ -937,13 +966,11 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-[50] lg:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>}
+
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <header className="h-16 lg:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-10 sticky top-0 z-40 shadow-sm gap-2">
-          <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-            <Menu size={24} />
-          </button>
+
           
           <div className="flex-1 max-w-xl relative">
             <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -952,18 +979,18 @@ const App: React.FC = () => {
 
           <div className="flex items-center gap-1.5 lg:gap-3">
             {isAdmin && (
-              <div className="hidden lg:flex gap-2">
-                <input type="file" ref={csvInputRef} className="hidden" accept=".csv" onChange={handleCSVUpload} />
-                <button onClick={() => csvInputRef.current?.click()} className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 shadow-sm" title="대량 업로드">
-                  <FileSpreadsheet size={18} className="text-emerald-500" />
+              <>
+                <input type="file" ref={csvInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleCSVUpload} />
+                <button onClick={() => csvInputRef.current?.click()} className="p-2.5 px-4 bg-white border-2 border-emerald-500 text-emerald-600 rounded-xl hover:bg-emerald-50 shadow-sm font-bold flex items-center gap-2" title="CSV 대량 업로드">
+                  <Upload size={18} /> <span className="text-sm">파일업로드</span>
                 </button>
-                <button onClick={handleCSVDownload} className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 shadow-sm" title="명단 추출">
-                  <Download size={18} className="text-blue-500" />
+                <button onClick={handleCSVDownload} className="p-2.5 px-4 bg-white border-2 border-blue-500 text-blue-600 rounded-xl hover:bg-blue-50 shadow-sm font-bold flex items-center gap-2" title="명단 추출">
+                  <Download size={18} /> <span className="text-sm">다운로드</span>
                 </button>
-              </div>
+              </>
             )}
-            <button onClick={() => { setEditingContact(null); setIsModalOpen(true); }} className="bg-blue-600 text-white p-2.5 lg:px-5 lg:py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-100">
-              <Plus size={20} /> <span className="hidden lg:inline text-sm">신규 등록</span>
+            <button onClick={() => { setEditingContact(null); setIsModalOpen(true); }} className="bg-blue-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-100">
+              <Plus size={20} /> <span className="text-sm">+ 신규등록</span>
             </button>
           </div>
         </header>
