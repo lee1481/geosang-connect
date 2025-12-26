@@ -7,8 +7,8 @@ import {
   Layers, Filter, X, Pencil, Globe, ChevronDown, Check, Lock,
   Wallet, Tag, Loader2, Calendar, DollarSign, Download, BarChart3, TrendingUp, FileSpreadsheet, Star, Key, ShieldCheck, UserPlus, LogOut, User, Menu, Contact2
 } from 'lucide-react';
-import { CategoryType, Contact, Staff, ConstructionRecord, LaborClaim, WorkSite, ClaimBreakdown } from './types';
-import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData, extractReceiptData, parseLaborClaimText } from './geminiService';
+import { CategoryType, Contact, Staff, ConstructionRecord, LaborClaim, WorkSite, ClaimBreakdown, Project, ProjectDocument, DocumentType } from './types';
+import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData, extractReceiptData, parseLaborClaimText, extractProjectDocument } from './geminiService';
 import * as XLSX from 'xlsx';
 
 interface AuthUser {
@@ -76,6 +76,14 @@ const App: React.FC = () => {
   const [isLaborClaimModalOpen, setIsLaborClaimModalOpen] = useState(false);
   const [editingClaim, setEditingClaim] = useState<LaborClaim | null>(null);
 
+  // 프로젝트 관리 (손익표)
+  const [projects, setProjects] = useState<Project[]>(() => {
+    const saved = localStorage.getItem('geosang_projects_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [isProjectView, setIsProjectView] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
   useEffect(() => {
     localStorage.setItem('geosang_contacts_v8', JSON.stringify(contacts));
   }, [contacts]);
@@ -83,6 +91,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('geosang_labor_claims_v1', JSON.stringify(laborClaims));
   }, [laborClaims]);
+
+  useEffect(() => {
+    localStorage.setItem('geosang_projects_v1', JSON.stringify(projects));
+  }, [projects]);
 
   useEffect(() => {
     localStorage.setItem('geosang_auth_users_v2', JSON.stringify(authorizedUsers));
@@ -851,6 +863,312 @@ const App: React.FC = () => {
     );
   };
 
+  // 프로젝트 관리 뷰 (손익표)
+  const ProjectManagementView = () => {
+    const [uploading, setUploading] = useState(false);
+    const [documentType, setDocumentType] = useState<DocumentType>('quotation');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // 매장별 손익 집계
+    const projectSummaries = useMemo(() => {
+      const summaryMap = new Map<string, {
+        storeName: string;
+        franchiseName: string;
+        revenue: number;
+        costs: { labor: number; materials: number; delivery: number; other: number; total: number };
+        profit: number;
+        margin: number;
+        documentCount: number;
+      }>();
+
+      projects.forEach(project => {
+        summaryMap.set(project.storeName, {
+          storeName: project.storeName,
+          franchiseName: project.franchiseName,
+          revenue: project.revenue.quotationAmount || 0,
+          costs: project.costs,
+          profit: project.profit.amount,
+          margin: project.profit.margin,
+          documentCount: project.documents?.length || 0
+        });
+      });
+
+      return Array.from(summaryMap.values());
+    }, [projects]);
+
+    // 프랜차이즈별 집계
+    const franchiseSummaries = useMemo(() => {
+      const franchiseMap = new Map<string, { stores: number; totalRevenue: number; totalCosts: number; totalProfit: number }>();
+      
+      projectSummaries.forEach(summary => {
+        const existing = franchiseMap.get(summary.franchiseName) || { stores: 0, totalRevenue: 0, totalCosts: 0, totalProfit: 0 };
+        franchiseMap.set(summary.franchiseName, {
+          stores: existing.stores + 1,
+          totalRevenue: existing.totalRevenue + summary.revenue,
+          totalCosts: existing.totalCosts + summary.costs.total,
+          totalProfit: existing.totalProfit + summary.profit
+        });
+      });
+
+      return Array.from(franchiseMap.entries());
+    }, [projectSummaries]);
+
+    // 파일 업로드 처리
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setUploading(true);
+
+      try {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64 = event.target?.result as string;
+          const base64Data = base64.split(',')[1];
+
+          // AI로 문서 분석
+          const extracted = await extractProjectDocument(base64Data, file.type, documentType);
+
+          if (!extracted.storeName) {
+            alert('매장명을 찾을 수 없습니다. 수동으로 입력해주세요.');
+            setUploading(false);
+            return;
+          }
+
+          // 프로젝트 찾기 또는 생성
+          let project = projects.find(p => p.storeName === extracted.storeName);
+          
+          if (!project) {
+            // 새 프로젝트 생성
+            project = {
+              id: `proj-${Date.now()}`,
+              storeName: extracted.storeName,
+              franchiseName: extracted.franchiseName || extracted.storeName.split(' ')[0],
+              location: extracted.storeName,
+              startDate: new Date().toISOString().split('T')[0],
+              status: 'in_progress',
+              revenue: { quotationAmount: 0 },
+              costs: { labor: 0, materials: 0, delivery: 0, other: 0, total: 0 },
+              profit: { amount: 0, margin: 0 },
+              documents: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+          }
+
+          // 문서 추가
+          const document: ProjectDocument = {
+            id: `doc-${Date.now()}`,
+            projectId: project.id,
+            storeName: extracted.storeName,
+            documentType,
+            title: file.name,
+            amount: extracted.amount,
+            file: {
+              data: base64Data,
+              name: file.name,
+              mimeType: file.type,
+              size: file.size
+            },
+            uploadedBy: currentUser.name,
+            uploadedAt: new Date().toISOString(),
+            extractedData: extracted
+          };
+
+          project.documents.push(document);
+
+          // 금액 업데이트
+          if (documentType === 'quotation' && extracted.amount) {
+            project.revenue.quotationAmount = extracted.amount;
+          } else if (documentType === 'transaction_stmt' && extracted.amount) {
+            project.costs.materials += extracted.amount;
+          } else if (documentType === 'delivery_cost' && extracted.amount) {
+            project.costs.delivery += extracted.amount;
+          }
+
+          // 인건비는 laborClaims에서 자동 집계
+          const laborCost = laborClaims
+            .filter(claim => claim.sites.some(s => s.siteName.includes(project!.storeName)))
+            .reduce((sum, claim) => sum + claim.totalAmount, 0);
+          project.costs.labor = laborCost;
+
+          // 총 비용 및 손익 계산
+          project.costs.total = project.costs.labor + project.costs.materials + project.costs.delivery + project.costs.other;
+          project.profit.amount = project.revenue.quotationAmount - project.costs.total;
+          project.profit.margin = project.revenue.quotationAmount > 0 
+            ? (project.profit.amount / project.revenue.quotationAmount) * 100 
+            : 0;
+
+          project.updatedAt = new Date().toISOString();
+
+          // 프로젝트 저장
+          setProjects(prev => {
+            const existing = prev.find(p => p.id === project!.id);
+            if (existing) {
+              return prev.map(p => p.id === project!.id ? project! : p);
+            }
+            return [...prev, project!];
+          });
+
+          alert(`✅ 문서 업로드 완료!\n\n매장: ${extracted.storeName}\n금액: ${extracted.amount?.toLocaleString()}원`);
+          setUploading(false);
+          
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('업로드 중 오류가 발생했습니다.');
+        setUploading(false);
+      }
+    };
+
+    return (
+      <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth bg-gradient-to-br from-slate-50 to-purple-50">
+        {/* 헤더 */}
+        <div className="mb-6">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">📊 프로젝트 관리 & 손익표</h2>
+          <p className="text-xs md:text-sm text-slate-600 mt-2">매장별 문서를 업로드하면 AI가 자동으로 분류하고 손익을 계산합니다</p>
+        </div>
+
+        {/* 문서 업로드 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 mb-6">
+          <h3 className="text-lg font-black text-slate-900 mb-4">📤 문서 업로드</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-2">문서 종류</label>
+              <select 
+                value={documentType} 
+                onChange={(e) => setDocumentType(e.target.value as DocumentType)}
+                className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold"
+              >
+                <option value="design_proposal">🎨 디자인 시안</option>
+                <option value="quotation">💰 견적서</option>
+                <option value="purchase_order">📋 발주서</option>
+                <option value="transaction_stmt">📄 거래명세서</option>
+                <option value="delivery_cost">🚚 배송비/퀵비</option>
+                <option value="labor_cost">👷 인건비 내역</option>
+                <option value="other">📎 기타</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-2">파일 선택</label>
+              <input 
+                ref={fileInputRef}
+                type="file" 
+                accept="image/*,.pdf" 
+                onChange={handleFileUpload}
+                disabled={uploading}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full p-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:bg-slate-300 flex items-center justify-center gap-2"
+              >
+                {uploading ? (
+                  <><Loader2 className="animate-spin" size={20} /> 분석 중...</>
+                ) : (
+                  <><Upload size={20} /> 파일 업로드</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 프랜차이즈별 통계 */}
+        {franchiseSummaries.length > 0 && (
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 mb-6">
+            <h3 className="text-lg font-black text-slate-900 mb-4">🏢 프랜차이즈별 통계</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {franchiseSummaries.map(([name, data]) => (
+                <div key={name} className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
+                  <h4 className="font-black text-slate-900 mb-2">{name}</h4>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">매장 수:</span>
+                      <span className="font-bold">{data.stores}개</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">총 수익:</span>
+                      <span className="font-bold text-blue-600">{data.totalRevenue.toLocaleString()}원</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">총 비용:</span>
+                      <span className="font-bold text-red-600">{data.totalCosts.toLocaleString()}원</span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-200 pt-1">
+                      <span className="text-slate-900 font-bold">순이익:</span>
+                      <span className={`font-black ${data.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {data.totalProfit.toLocaleString()}원
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 매장별 손익표 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <h3 className="text-lg font-black text-slate-900 mb-4">💼 매장별 손익표</h3>
+          {projectSummaries.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <FileSpreadsheet size={48} className="mx-auto mb-4 opacity-50" />
+              <p className="font-bold">문서를 업로드하면 자동으로 손익표가 생성됩니다</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-slate-200">
+                    <th className="text-left p-3 text-xs font-black text-slate-600">매장명</th>
+                    <th className="text-left p-3 text-xs font-black text-slate-600">프랜차이즈</th>
+                    <th className="text-right p-3 text-xs font-black text-slate-600">견적금액</th>
+                    <th className="text-right p-3 text-xs font-black text-slate-600">인건비</th>
+                    <th className="text-right p-3 text-xs font-black text-slate-600">자재비</th>
+                    <th className="text-right p-3 text-xs font-black text-slate-600">배송비</th>
+                    <th className="text-right p-3 text-xs font-black text-slate-600">총비용</th>
+                    <th className="text-right p-3 text-xs font-black text-slate-600">손익</th>
+                    <th className="text-right p-3 text-xs font-black text-slate-600">이익률</th>
+                    <th className="text-center p-3 text-xs font-black text-slate-600">문서</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectSummaries.map(summary => (
+                    <tr key={summary.storeName} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="p-3 text-sm font-bold text-slate-900">{summary.storeName}</td>
+                      <td className="p-3 text-xs text-slate-600">{summary.franchiseName}</td>
+                      <td className="p-3 text-sm font-bold text-right text-blue-600">{summary.revenue.toLocaleString()}</td>
+                      <td className="p-3 text-xs text-right text-slate-600">{summary.costs.labor.toLocaleString()}</td>
+                      <td className="p-3 text-xs text-right text-slate-600">{summary.costs.materials.toLocaleString()}</td>
+                      <td className="p-3 text-xs text-right text-slate-600">{summary.costs.delivery.toLocaleString()}</td>
+                      <td className="p-3 text-sm font-bold text-right text-red-600">{summary.costs.total.toLocaleString()}</td>
+                      <td className={`p-3 text-sm font-black text-right ${summary.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {summary.profit.toLocaleString()}
+                      </td>
+                      <td className={`p-3 text-xs font-bold text-right ${summary.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {summary.margin.toFixed(1)}%
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded-lg text-xs font-bold">
+                          {summary.documentCount}건
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
+
   const AdminModal = ({ users, onClose, onAdd, onRevoke }: any) => {
     const [newName, setNewName] = useState('');
     const [newId, setNewId] = useState('');
@@ -1419,10 +1737,11 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto pb-8 scrollbar-hide">
-          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView} onClick={() => { setIsLaborClaimView(true); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView && !isProjectView} onClick={() => { setIsLaborClaimView(true); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<BarChart3 size={18} />} label="📊 프로젝트 손익표" active={isProjectView} onClick={() => { setIsProjectView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
           <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsMobileMenuOpen(false); }} />
@@ -1462,10 +1781,11 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto pb-8 scrollbar-hide">
-          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView} onClick={() => { setIsLaborClaimView(true); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView && !isProjectView} onClick={() => { setIsLaborClaimView(true); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<BarChart3 size={18} />} label="📊 프로젝트 손익표" active={isProjectView} onClick={() => { setIsProjectView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
           <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsMobileMenuOpen(false); }} />
@@ -1546,7 +1866,9 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {isLaborClaimView ? (
+        {isProjectView ? (
+          <ProjectManagementView />
+        ) : isLaborClaimView ? (
           <LaborClaimView 
             claims={laborClaims}
             outsourceWorkers={contacts.filter(c => c.category === CategoryType.OUTSOURCE)}
