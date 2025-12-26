@@ -429,41 +429,96 @@ const App: React.FC = () => {
         if (type === 'INDUSTRY') return formData.industry === item;
         return formData.subCategory === item;
       };
+      
+      const handleDeleteItem = (item: string) => {
+        if (!isAdmin) return;
+        if (confirm(`'${item}' 항목을 삭제하시겠습니까?`)) {
+          if (type === 'DEPT') {
+            const newDepts = departments.filter(d => d !== item);
+            setDepartments(newDepts);
+            localStorage.setItem('geosang_departments_v3', JSON.stringify(newDepts));
+          } else if (type === 'INDUSTRY') {
+            const newInds = industries.filter(i => i !== item);
+            setIndustries(newInds);
+            localStorage.setItem('geosang_industries_v2', JSON.stringify(newInds));
+          } else {
+            const newTypes = outsourceTypes.filter(t => t !== item);
+            setOutsourceTypes(newTypes);
+            localStorage.setItem('outsource_types_v3', JSON.stringify(newTypes));
+          }
+        }
+      };
+      
+      const handleEditItem = (item: string) => {
+        if (!isAdmin) return;
+        const newName = prompt(`'${item}' 항목의 이름을 수정하시겠습니까?`, item);
+        if (newName && newName !== item) {
+          onRenameItem(item, newName, type);
+          if (type === 'DEPT') {
+            const newDepts = departments.map(d => d === item ? newName : d);
+            setDepartments(newDepts);
+            localStorage.setItem('geosang_departments_v3', JSON.stringify(newDepts));
+          } else if (type === 'INDUSTRY') {
+            const newInds = industries.map(i => i === item ? newName : i);
+            setIndustries(newInds);
+            localStorage.setItem('geosang_industries_v2', JSON.stringify(newInds));
+          } else {
+            const newTypes = outsourceTypes.map(t => t === item ? newName : t);
+            setOutsourceTypes(newTypes);
+            localStorage.setItem('outsource_types_v3', JSON.stringify(newTypes));
+          }
+        }
+      };
+      
       return (
         <div className="bg-slate-50 p-4 lg:p-6 rounded-2xl border border-slate-200 space-y-3">
           <label className={labelClasses}>{type === 'DEPT' ? '팀 선택' : (type === 'INDUSTRY' ? '업종' : '구분')}</label>
           <div className="flex flex-wrap gap-1.5">
             {items.map(item => (
-              <button 
-                key={item} 
-                type="button" 
-                onClick={() => { 
-                  if (type === 'DEPT') { 
-                    setSelectedDepartment(item); 
-                    handleStaffChange(formData.staffList!.length - 1, 'department', item); 
-                  } else if (type === 'INDUSTRY') {
-                    setFormData({...formData, industry: item}); 
-                  } else {
-                    setFormData({...formData, subCategory: item});
-                  }
-                }} 
-                onContextMenu={(e) => {
-                  if (!isAdmin) return;
-                  e.preventDefault(); 
-                  const newName = prompt(`'${item}' 항목의 이름을 수정하시겠습니까?`, item);
-                  if (newName && newName !== item) onRenameItem(item, newName, type);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-[10px] lg:text-xs font-black border-2 transition-all ${isSelected(item) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200'}`}
-                title={isAdmin ? "마우스 우클릭으로 이름 수정 가능" : ""}
-              >
-                {item}
-              </button>
+              <div key={item} className="relative group">
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    if (type === 'DEPT') { 
+                      setSelectedDepartment(item); 
+                      handleStaffChange(formData.staffList!.length - 1, 'department', item); 
+                    } else if (type === 'INDUSTRY') {
+                      setFormData({...formData, industry: item}); 
+                    } else {
+                      setFormData({...formData, subCategory: item});
+                    }
+                  }} 
+                  className={`px-3 py-1.5 rounded-lg text-[10px] lg:text-xs font-black border-2 transition-all ${isSelected(item) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
+                >
+                  {item}
+                </button>
+                {isAdmin && (
+                  <div className="absolute -top-2 -right-2 hidden group-hover:flex gap-0.5 z-10">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleEditItem(item); }}
+                      className="bg-blue-600 text-white p-1 rounded-md shadow-lg hover:bg-blue-700 transition-all"
+                      title="이름 수정"
+                    >
+                      <Pencil size={10} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteItem(item); }}
+                      className="bg-red-600 text-white p-1 rounded-md shadow-lg hover:bg-red-700 transition-all"
+                      title="삭제"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
           {isAdmin && (
             <div className="flex gap-2 pt-2">
-              <input className="flex-1 bg-white border-2 border-slate-200 rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none" placeholder="직접 추가..." value={newItemInput} onChange={e => setNewItemInput(e.target.value)} />
-              <button type="button" onClick={() => { if(newItemInput) { if (type === 'DEPT') onAddDept(newItemInput); else if (type === 'INDUSTRY') onAddIndustry(newItemInput); else onAddOutsourceType(newItemInput); setNewItemInput(''); } }} className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black">추가</button>
+              <input className="flex-1 bg-white border-2 border-slate-200 rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none" placeholder="직접 추가..." value={newItemInput} onChange={e => setNewItemInput(e.target.value)} onKeyPress={e => { if(e.key === 'Enter') { e.preventDefault(); if(newItemInput) { if (type === 'DEPT') onAddDept(newItemInput); else if (type === 'INDUSTRY') onAddIndustry(newItemInput); else onAddOutsourceType(newItemInput); setNewItemInput(''); } } }} />
+              <button type="button" onClick={() => { if(newItemInput) { if (type === 'DEPT') onAddDept(newItemInput); else if (type === 'INDUSTRY') onAddIndustry(newItemInput); else onAddOutsourceType(newItemInput); setNewItemInput(''); } }} className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black hover:bg-slate-800 transition-all">추가</button>
             </div>
           )}
         </div>
