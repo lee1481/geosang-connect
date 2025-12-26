@@ -7,8 +7,8 @@ import {
   Layers, Filter, X, Pencil, Globe, ChevronDown, Check, Lock,
   Wallet, Tag, Loader2, Calendar, DollarSign, Download, BarChart3, TrendingUp, FileSpreadsheet, Star, Key, ShieldCheck, UserPlus, LogOut, User, Menu, Contact2
 } from 'lucide-react';
-import { CategoryType, Contact, Staff, ConstructionRecord } from './types';
-import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData } from './geminiService';
+import { CategoryType, Contact, Staff, ConstructionRecord, LaborClaim } from './types';
+import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData, extractLaborClaimData, parseLaborClaimText } from './geminiService';
 import * as XLSX from 'xlsx';
 
 interface AuthUser {
@@ -67,9 +67,22 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : DEFAULT_OUTSOURCE_TYPES;
   });
 
+  // 인건비 청구 관리
+  const [laborClaims, setLaborClaims] = useState<LaborClaim[]>(() => {
+    const saved = localStorage.getItem('geosang_labor_claims_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [isLaborClaimView, setIsLaborClaimView] = useState(false);
+  const [isLaborClaimModalOpen, setIsLaborClaimModalOpen] = useState(false);
+  const [editingClaim, setEditingClaim] = useState<LaborClaim | null>(null);
+
   useEffect(() => {
     localStorage.setItem('geosang_contacts_v8', JSON.stringify(contacts));
   }, [contacts]);
+
+  useEffect(() => {
+    localStorage.setItem('geosang_labor_claims_v1', JSON.stringify(laborClaims));
+  }, [laborClaims]);
 
   useEffect(() => {
     localStorage.setItem('geosang_auth_users_v2', JSON.stringify(authorizedUsers));
@@ -372,6 +385,171 @@ const App: React.FC = () => {
           ))}
         </div>
       </div>
+    );
+  };
+
+  // 인건비 청구 관리 뷰
+  const LaborClaimView = ({ claims, outsourceWorkers, onAddClaim, onEditClaim, onDeleteClaim, onUpdateStatus }: any) => {
+    const [period, setPeriod] = useState<'week' | 'month' | 'quarter'>('week');
+    const [selectedWorker, setSelectedWorker] = useState<string>('all');
+    
+    const filteredClaims = useMemo(() => {
+      let filtered = claims;
+      
+      // 일당 필터
+      if (selectedWorker !== 'all') {
+        filtered = filtered.filter((c: LaborClaim) => c.workerId === selectedWorker);
+      }
+      
+      // 기간 필터
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfQuarter = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+      
+      filtered = filtered.filter((c: LaborClaim) => {
+        const claimDate = new Date(c.date);
+        if (period === 'week') return claimDate >= startOfWeek;
+        if (period === 'month') return claimDate >= startOfMonth;
+        return claimDate >= startOfQuarter;
+      });
+      
+      return filtered.sort((a: LaborClaim, b: LaborClaim) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [claims, period, selectedWorker]);
+    
+    const totalAmount = filteredClaims.reduce((sum: number, c: LaborClaim) => sum + c.amount, 0);
+    const pendingAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'pending').reduce((sum: number, c: LaborClaim) => sum + c.amount, 0);
+    const paidAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'paid').reduce((sum: number, c: LaborClaim) => sum + c.amount, 0);
+    
+    return (
+      <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth bg-gradient-to-br from-slate-50 to-blue-50">
+        {/* 헤더 */}
+        <div className="mb-6">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">💰 인건비 청구 관리</h2>
+          <p className="text-xs md:text-sm text-slate-600 mt-2">외주 일당의 인건비 청구 내역을 간편하게 관리하세요</p>
+        </div>
+        
+        {/* 통계 카드 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <DollarSign className="text-blue-600" size={24} />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-bold">총 청구금액</p>
+                <p className="text-2xl font-black text-slate-900">{totalAmount.toLocaleString()}원</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                <Calendar className="text-amber-600" size={24} />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-bold">대기중</p>
+                <p className="text-2xl font-black text-amber-600">{pendingAmount.toLocaleString()}원</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                <Check className="text-emerald-600" size={24} />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-bold">지급완료</p>
+                <p className="text-2xl font-black text-emerald-600">{paidAmount.toLocaleString()}원</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* 필터 & 액션 */}
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-6">
+          <div className="flex flex-wrap gap-3 items-center justify-between">
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setPeriod('week')} className={`px-4 py-2 rounded-lg font-bold text-xs ${period === 'week' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>주간</button>
+              <button onClick={() => setPeriod('month')} className={`px-4 py-2 rounded-lg font-bold text-xs ${period === 'month' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>월간</button>
+              <button onClick={() => setPeriod('quarter')} className={`px-4 py-2 rounded-lg font-bold text-xs ${period === 'quarter' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>분기</button>
+              
+              <select value={selectedWorker} onChange={(e) => setSelectedWorker(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold">
+                <option value="all">전체 일당</option>
+                {outsourceWorkers.map((w: Contact) => (
+                  <option key={w.id} value={w.staffList[0]?.id}>{w.staffList[0]?.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <button onClick={onAddClaim} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-blue-700">
+              <Plus size={18} /> 청구 등록
+            </button>
+          </div>
+        </div>
+        
+        {/* 청구 내역 리스트 */}
+        <div className="space-y-3">
+          {filteredClaims.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-slate-200">
+              <FileText size={48} className="mx-auto text-slate-300 mb-4" />
+              <p className="text-slate-500 font-bold">청구 내역이 없습니다</p>
+              <p className="text-xs text-slate-400 mt-2">새로운 청구를 등록해보세요</p>
+            </div>
+          ) : (
+            filteredClaims.map((claim: LaborClaim) => (
+              <div key={claim.id} className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-all">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-lg font-black text-slate-900">{claim.workerName}</h3>
+                      <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase ${
+                        claim.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        claim.status === 'approved' ? 'bg-blue-100 text-blue-700' :
+                        'bg-emerald-100 text-emerald-700'
+                      }`}>{claim.status === 'pending' ? '대기' : claim.status === 'approved' ? '승인' : '지급완료'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                      <div><span className="font-bold">작업일:</span> {claim.date}</div>
+                      <div><span className="font-bold">장소:</span> {claim.location}</div>
+                      <div className="col-span-2"><span className="font-bold">내용:</span> {claim.workDescription}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-blue-600">{claim.amount.toLocaleString()}원</p>
+                    {claim.hours && <p className="text-xs text-slate-500">{claim.hours}시간</p>}
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+                  {claim.receiptImage && (
+                    <button className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200">
+                      📸 내역서
+                    </button>
+                  )}
+                  {claim.status === 'pending' && (
+                    <button onClick={() => onUpdateStatus(claim.id, 'approved')} className="px-3 py-1.5 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-200">
+                      ✓ 승인
+                    </button>
+                  )}
+                  {claim.status === 'approved' && (
+                    <button onClick={() => onUpdateStatus(claim.id, 'paid')} className="px-3 py-1.5 bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-200">
+                      💵 지급완료
+                    </button>
+                  )}
+                  <button onClick={() => onEditClaim(claim)} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200">
+                    수정
+                  </button>
+                  <button onClick={() => onDeleteClaim(claim.id)} className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-xs font-bold hover:bg-red-200">
+                    삭제
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
     );
   };
 
@@ -943,9 +1121,10 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto pb-8 scrollbar-hide">
-          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView} onClick={() => { setIsLaborClaimView(true); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
           <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsMobileMenuOpen(false); }} />
@@ -985,9 +1164,10 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto pb-8 scrollbar-hide">
-          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView} onClick={() => { setIsLaborClaimView(true); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
           <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsMobileMenuOpen(false); }} />
@@ -1068,19 +1248,30 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth">
-          <div className="mb-4 md:mb-6 lg:mb-10">
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">{getCategoryName(activeCategory)}</h2>
-            <p className="text-[10px] md:text-xs lg:text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">{searchTerm ? `'${searchTerm}' 결과: ` : '데이터 현황: '}{filteredContacts.length}건</p>
-          </div>
-          
-          {/* 반응형 그리드: 모바일 1열, 태블릿 2열, PC 3열 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5 lg:gap-8 pb-20">
-            {filteredContacts.map(contact => (
-              <ContactCard key={contact.id} contact={contact} canManage={isAdmin} onEdit={() => { setEditingContact(contact); setIsModalOpen(true); }} onDelete={() => { if(confirm('삭제하시겠습니까?')) setContacts(prev => prev.filter(c => c.id !== contact.id)) }} />
-            ))}
-          </div>
-        </section>
+        {isLaborClaimView ? (
+          <LaborClaimView 
+            claims={laborClaims}
+            outsourceWorkers={contacts.filter(c => c.category === CategoryType.OUTSOURCE)}
+            onAddClaim={() => { setEditingClaim(null); setIsLaborClaimModalOpen(true); }}
+            onEditClaim={(claim) => { setEditingClaim(claim); setIsLaborClaimModalOpen(true); }}
+            onDeleteClaim={(id) => { if(confirm('삭제하시겠습니까?')) setLaborClaims(prev => prev.filter(c => c.id !== id)); }}
+            onUpdateStatus={(id, status) => setLaborClaims(prev => prev.map(c => c.id === id ? { ...c, status, ...(status === 'approved' ? { approvedBy: currentUser.name, approvedAt: new Date().toISOString() } : status === 'paid' ? { paidAt: new Date().toISOString() } : {}) } : c))}
+          />
+        ) : (
+          <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth">
+            <div className="mb-4 md:mb-6 lg:mb-10">
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">{getCategoryName(activeCategory)}</h2>
+              <p className="text-[10px] md:text-xs lg:text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">{searchTerm ? `'${searchTerm}' 결과: ` : '데이터 현황: '}{filteredContacts.length}건</p>
+            </div>
+            
+            {/* 반응형 그리드: 모바일 1열, 태블릿 2열, PC 3열 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5 lg:gap-8 pb-20">
+              {filteredContacts.map(contact => (
+                <ContactCard key={contact.id} contact={contact} canManage={isAdmin} onEdit={() => { setEditingContact(contact); setIsModalOpen(true); }} onDelete={() => { if(confirm('삭제하시겠습니까?')) setContacts(prev => prev.filter(c => c.id !== contact.id)) }} />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       {isAdminModalOpen && <AdminModal users={authorizedUsers} onClose={() => setIsAdminModalOpen(false)} onAdd={handleAddAuthUser} onRevoke={handleRevokeAccess} />}
@@ -1093,6 +1284,335 @@ const App: React.FC = () => {
           onRenameItem={handleGlobalRenameItem} isAdmin={isAdmin}
         />
       )}
+      {isLaborClaimModalOpen && (
+        <LaborClaimModal
+          onClose={() => setIsLaborClaimModalOpen(false)}
+          onSubmit={(claim: LaborClaim) => {
+            if (editingClaim) {
+              setLaborClaims(prev => prev.map(c => c.id === claim.id ? claim : c));
+            } else {
+              setLaborClaims(prev => [...prev, claim]);
+            }
+            setIsLaborClaimModalOpen(false);
+          }}
+          initialData={editingClaim}
+          outsourceWorkers={contacts.filter(c => c.category === CategoryType.OUTSOURCE)}
+        />
+      )}
+    </div>
+  );
+};
+
+// 인건비 청구 등록/수정 모달
+const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: any) => {
+  const [formData, setFormData] = useState<Partial<LaborClaim>>(
+    initialData || {
+      id: 'claim-' + Date.now(),
+      workerId: '',
+      workerName: '',
+      workerPhone: '',
+      date: new Date().toISOString().split('T')[0],
+      location: '',
+      workDescription: '',
+      hours: 8,
+      amount: 0,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      rawText: ''
+    }
+  );
+  
+  const [inputMode, setInputMode] = useState<'form' | 'text' | 'image'>('text');
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [isTextParsing, setIsTextParsing] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  
+  const handleWorkerChange = (workerId: string) => {
+    const worker = outsourceWorkers.find((w: Contact) => w.staffList[0]?.id === workerId);
+    if (worker && worker.staffList[0]) {
+      setFormData({
+        ...formData,
+        workerId,
+        workerName: worker.staffList[0].name,
+        workerPhone: worker.staffList[0].phone
+      });
+    }
+  };
+  
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsOcrLoading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = (event.target?.result as string).split(',')[1];
+        try {
+          const result = await extractLaborClaimData(base64, file.type);
+          if (result.claims && result.claims.length > 0) {
+            const claim = result.claims[0];
+            setFormData({
+              ...formData,
+              date: claim.date,
+              location: claim.location,
+              workDescription: claim.workDescription,
+              hours: claim.hours || 8,
+              amount: claim.amount,
+              receiptImage: {
+                data: base64,
+                name: file.name,
+                mimeType: file.type
+              }
+            });
+            alert('✅ 내역서 분석 완료!');
+          }
+        } catch (error) {
+          alert('❌ OCR 실패: ' + error);
+        }
+        setIsOcrLoading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      alert('파일 읽기 실패');
+      setIsOcrLoading(false);
+    }
+  };
+  
+  const handleTextParse = async () => {
+    if (!formData.rawText?.trim()) {
+      alert('문자 내용을 입력하세요');
+      return;
+    }
+    
+    setIsTextParsing(true);
+    try {
+      const result = await parseLaborClaimText(formData.rawText);
+      setFormData({
+        ...formData,
+        date: result.date,
+        location: result.location,
+        workDescription: result.workDescription,
+        hours: result.hours || 8,
+        amount: result.amount
+      });
+      alert('✅ 문자 분석 완료!');
+      setInputMode('form');
+    } catch (error) {
+      alert('❌ 분석 실패: ' + error);
+    }
+    setIsTextParsing(false);
+  };
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.workerId || !formData.date || !formData.location || !formData.amount) {
+      alert('필수 항목을 입력하세요');
+      return;
+    }
+    onSubmit(formData as LaborClaim);
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-3xl w-full my-8 shadow-2xl">
+        <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-3xl flex justify-between items-center z-10">
+          <h2 className="text-2xl font-black flex items-center gap-2">
+            <DollarSign size={28} /> {initialData ? '청구 수정' : '💬 간편 청구 등록'}
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl transition-all">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* 입력 모드 선택 */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setInputMode('text')}
+              className={`flex-1 p-4 rounded-xl font-bold transition-all ${inputMode === 'text' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+            >
+              💬 문자 입력
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputMode('image')}
+              className={`flex-1 p-4 rounded-xl font-bold transition-all ${inputMode === 'image' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+            >
+              📸 사진 업로드
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputMode('form')}
+              className={`flex-1 p-4 rounded-xl font-bold transition-all ${inputMode === 'form' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+            >
+              📝 직접 입력
+            </button>
+          </div>
+          
+          {/* 문자 입력 모드 */}
+          {inputMode === 'text' && (
+            <div className="space-y-4 bg-slate-50 p-6 rounded-2xl">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Contact2 size={24} className="text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-black text-lg mb-2">💬 카톡 스타일 간편 입력</h3>
+                  <p className="text-xs text-slate-600 mb-4">일당들이 보낸 문자 그대로 복사해서 붙여넣으세요. AI가 자동으로 분석합니다!</p>
+                  <textarea
+                    value={formData.rawText || ''}
+                    onChange={(e) => setFormData({ ...formData, rawText: e.target.value })}
+                    placeholder="예시:&#10;12/26 강남 현장 타일공사 150,000원&#10;오늘 서초구 빌딩 도배작업 12만원&#10;26일 판교 전기작업 8시간 20만원"
+                    className="w-full p-4 border-2 border-slate-200 rounded-xl text-sm font-medium resize-none focus:border-blue-500 outline-none"
+                    rows={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleTextParse}
+                    disabled={isTextParsing || !formData.rawText?.trim()}
+                    className="mt-3 w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isTextParsing ? <Loader2 className="animate-spin" size={20} /> : <><Contact2 size={20} /> AI 자동 분석</>}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* 사진 업로드 모드 */}
+          {inputMode === 'image' && (
+            <div className="space-y-4 bg-slate-50 p-6 rounded-2xl">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Upload size={24} className="text-emerald-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-black text-lg mb-2">📸 내역서 사진 업로드</h3>
+                  <p className="text-xs text-slate-600 mb-4">인건비 내역서 사진을 업로드하면 OCR로 자동 분석합니다</p>
+                  <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={isOcrLoading}
+                    className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isOcrLoading ? <Loader2 className="animate-spin" size={20} /> : <><Upload size={20} /> 사진 선택</>}
+                  </button>
+                  {formData.receiptImage && (
+                    <p className="mt-2 text-xs text-emerald-600 font-bold">✓ {formData.receiptImage.name} 업로드됨</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* 폼 입력 모드 */}
+          {inputMode === 'form' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-600 mb-2">일당 선택 *</label>
+                <select
+                  value={formData.workerId}
+                  onChange={(e) => handleWorkerChange(e.target.value)}
+                  className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                  required
+                >
+                  <option value="">선택하세요</option>
+                  {outsourceWorkers.map((w: Contact) => (
+                    <option key={w.staffList[0]?.id} value={w.staffList[0]?.id}>
+                      {w.staffList[0]?.name} {w.staffList[0]?.phone && `(${w.staffList[0].phone})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-slate-600 mb-2">작업일 *</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-600 mb-2">작업 시간</label>
+                  <input
+                    type="number"
+                    value={formData.hours || 8}
+                    onChange={(e) => setFormData({ ...formData, hours: parseFloat(e.target.value) })}
+                    className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                    placeholder="8"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-black text-slate-600 mb-2">작업 장소 *</label>
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                  placeholder="강남구 OO빌딩"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-black text-slate-600 mb-2">작업 내용 *</label>
+                <textarea
+                  value={formData.workDescription}
+                  onChange={(e) => setFormData({ ...formData, workDescription: e.target.value })}
+                  className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none resize-none"
+                  placeholder="타일 공사, 도배 작업 등"
+                  rows={3}
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-black text-slate-600 mb-2">청구 금액 *</label>
+                <input
+                  type="number"
+                  value={formData.amount || ''}
+                  onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                  className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold text-2xl focus:border-blue-500 outline-none"
+                  placeholder="150000"
+                  required
+                />
+                {formData.amount > 0 && (
+                  <p className="mt-2 text-sm font-bold text-blue-600">{formData.amount.toLocaleString()}원</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-xs font-black text-slate-600 mb-2">메모</label>
+                <textarea
+                  value={formData.memo || ''}
+                  onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+                  className="w-full p-3 border-2 border-slate-200 rounded-xl font-medium focus:border-blue-500 outline-none resize-none"
+                  placeholder="특이사항이나 메모"
+                  rows={2}
+                />
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-3 pt-4 border-t-2 border-slate-100">
+            <button type="button" onClick={onClose} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200">
+              취소
+            </button>
+            <button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">
+              {initialData ? '수정' : '등록'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
