@@ -99,3 +99,76 @@ export interface LaborClaim {
   createdAt: string;            // 등록일시
   rawText?: string;             // 원본 텍스트 (문자 입력용)
 }
+
+// 프로젝트 문서 타입
+export type DocumentType = 
+  | 'design_proposal'    // 디자인 시안
+  | 'quotation'          // 견적서
+  | 'purchase_order'     // 발주서
+  | 'labor_cost'         // 인건비 내역
+  | 'delivery_cost'      // 배송비/퀵비
+  | 'transaction_stmt'   // 거래명세서
+  | 'receipt'            // 영수증
+  | 'other';             // 기타
+
+// 프로젝트 문서
+export interface ProjectDocument {
+  id: string;
+  projectId: string;            // 프로젝트 ID
+  storeName: string;            // 매장명 (자동 추출)
+  documentType: DocumentType;   // 문서 타입
+  title: string;                // 문서 제목
+  amount?: number;              // 금액
+  file: {                       // 파일 정보
+    data: string;               // base64
+    name: string;
+    mimeType: string;
+    size: number;
+  };
+  uploadedBy: string;           // 업로드자 (디자이너/감리자/경리부)
+  uploadedAt: string;           // 업로드 일시
+  extractedData?: {             // AI 추출 데이터
+    storeName?: string;
+    amount?: number;
+    date?: string;
+    supplier?: string;
+    items?: string[];
+  };
+  memo?: string;
+}
+
+// 프로젝트 (매장별)
+export interface Project {
+  id: string;
+  storeName: string;            // 매장명 (예: 컴포즈커피 인천점)
+  franchiseName: string;        // 프랜차이즈명 (예: 컴포즈커피)
+  location: string;             // 위치
+  startDate: string;            // 시작일
+  endDate?: string;             // 종료일
+  status: 'planning' | 'in_progress' | 'completed' | 'on_hold';
+  
+  // 수익
+  revenue: {
+    quotationAmount: number;    // 견적 금액
+    actualAmount?: number;      // 실제 수주 금액
+  };
+  
+  // 비용
+  costs: {
+    labor: number;              // 인건비 (자동 집계)
+    materials: number;          // 자재비 (거래명세서)
+    delivery: number;           // 배송비/퀵비
+    other: number;              // 기타 비용
+    total: number;              // 총 비용
+  };
+  
+  // 손익
+  profit: {
+    amount: number;             // 손익 금액
+    margin: number;             // 이익률 (%)
+  };
+  
+  documents: ProjectDocument[]; // 문서 목록
+  createdAt: string;
+  updatedAt: string;
+}

@@ -261,3 +261,91 @@ export async function extractBusinessCardData(fileBase64: string, mimeType: stri
     throw error;
   }
 }
+
+// 프로젝트 문서 자동 분석 (매장명, 금액 추출)
+export async function extractProjectDocument(fileBase64: string, mimeType: string, documentType: string) {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const prompts: Record<string, string> = {
+    design_proposal: `
+      이 이미지는 간판 디자인 시안입니다.
+      다음 정보를 추출하세요:
+      - storeName: 매장명 (예: 컴포즈커피 인천점, 스타벅스 강남점)
+      - franchiseName: 프랜차이즈명 (예: 컴포즈커피, 스타벅스)
+      - location: 지점명/위치 (예: 인천점, 강남점)
+      - designNotes: 디자인 특징 요약
+    `,
+    quotation: `
+      이 이미지는 견적서입니다.
+      다음 정보를 추출하세요:
+      - storeName: 매장명 (예: 컴포즈커피 인천점)
+      - franchiseName: 프랜차이즈명
+      - amount: 총 견적 금액 (숫자만)
+      - date: 견적일자 (YYYY-MM-DD)
+      - items: 견적 항목 목록 (배열)
+    `,
+    purchase_order: `
+      이 이미지는 발주서입니다.
+      다음 정보를 추출하세요:
+      - storeName: 매장명
+      - supplier: 공급업체명
+      - amount: 발주 금액 (숫자만)
+      - date: 발주일자 (YYYY-MM-DD)
+      - items: 발주 항목 목록
+    `,
+    transaction_stmt: `
+      이 이미지는 거래명세서입니다.
+      다음 정보를 추출하세요:
+      - storeName: 매장명 (거래처명에서 추출)
+      - supplier: 공급업체명
+      - amount: 거래 금액 (숫자만)
+      - date: 거래일자 (YYYY-MM-DD)
+      - items: 거래 항목 목록
+    `,
+    delivery_cost: `
+      이 이미지는 배송비/퀵비 영수증입니다.
+      다음 정보를 추출하세요:
+      - storeName: 배송지 매장명
+      - amount: 배송비 금액 (숫자만)
+      - date: 배송일자 (YYYY-MM-DD)
+      - deliveryType: 배송 유형 (택배/퀵/차량/기타)
+    `
+  };
+
+  const prompt = prompts[documentType] || prompts.quotation;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp',
+      contents: {
+        parts: [
+          { inlineData: { data: fileBase64, mimeType } },
+          { text: prompt }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            storeName: { type: Type.STRING },
+            franchiseName: { type: Type.STRING },
+            amount: { type: Type.NUMBER },
+            date: { type: Type.STRING },
+            supplier: { type: Type.STRING },
+            items: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ["storeName"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text);
+  } catch (error) {
+    console.error("Project Document OCR Error:", error);
+    throw error;
+  }
+}
