@@ -392,6 +392,7 @@ const App: React.FC = () => {
   const LaborClaimView = ({ claims, outsourceWorkers, onAddClaim, onEditClaim, onDeleteClaim, onUpdateStatus }: any) => {
     const [period, setPeriod] = useState<'week' | 'month' | 'quarter'>('week');
     const [selectedWorker, setSelectedWorker] = useState<string>('all');
+    const [workerDetailModal, setWorkerDetailModal] = useState<string | null>(null);
     
     const filteredClaims = useMemo(() => {
       let filtered = claims;
@@ -644,6 +645,9 @@ const App: React.FC = () => {
                       💵 지급완료
                     </button>
                   )}
+                  <button onClick={() => setWorkerDetailModal(claim.workerId)} className="px-3 py-1.5 bg-purple-100 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-200">
+                    📊 개인별 내역
+                  </button>
                   <button onClick={() => onEditClaim(claim)} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200">
                     수정
                   </button>
@@ -655,6 +659,176 @@ const App: React.FC = () => {
             ))
           )}
         </div>
+        
+        {/* 개인별 상세 내역 모달 */}
+        {workerDetailModal && (() => {
+          const workerClaims = claims.filter((c: LaborClaim) => c.workerId === workerDetailModal);
+          const workerName = workerClaims[0]?.workerName || '일당';
+          const paidClaims = workerClaims.filter((c: LaborClaim) => c.status === 'paid');
+          const unpaidClaims = workerClaims.filter((c: LaborClaim) => c.status !== 'paid');
+          const totalPaid = paidClaims.reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
+          const totalUnpaid = unpaidClaims.reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
+          
+          // 개인별 CSV 다운로드
+          const downloadWorkerCSV = () => {
+            let csvContent = "\uFEFF";
+            const headers = ['상태', '작업일', '현장명', '작업시간', '배분금액', '총청구금액', '지급일자'];
+            csvContent += headers.map(h => `"${h}"`).join(",") + "\n";
+            
+            [...paidClaims, ...unpaidClaims].forEach((claim: LaborClaim) => {
+              claim.sites.forEach((site) => {
+                const totalHours = claim.sites.reduce((sum, s) => sum + s.hours, 0);
+                const allocated = totalHours > 0 ? Math.round((site.hours / totalHours) * claim.totalAmount) : 0;
+                const row = [
+                  claim.status === 'paid' ? '지급완료' : (claim.status === 'approved' ? '승인대기' : '대기'),
+                  claim.date,
+                  site.siteName,
+                  site.hours,
+                  allocated,
+                  claim.totalAmount,
+                  claim.paidAt ? new Date(claim.paidAt).toLocaleDateString('ko-KR') : '-'
+                ];
+                csvContent += row.map(v => `"${v}"`).join(",") + "\n";
+              });
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${workerName}_작업비내역_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+          };
+          
+          return (
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                <div className="p-6 lg:p-8 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-purple-600 to-blue-600">
+                  <div>
+                    <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                      <Contact2 size={28} />
+                      {workerName} 작업비 내역
+                    </h2>
+                    <p className="text-sm text-white/80 mt-1">지급/미지급 내역을 확인하세요</p>
+                  </div>
+                  <button onClick={() => setWorkerDetailModal(null)} className="p-2 bg-white/20 rounded-xl hover:bg-white/30">
+                    <X size={24} className="text-white" />
+                  </button>
+                </div>
+                
+                <div className="p-6 lg:p-8 flex-1 overflow-y-auto space-y-6">
+                  {/* 통계 요약 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                          <Check className="text-emerald-600" size={20} />
+                        </div>
+                        <div>
+                          <p className="text-xs text-emerald-700 font-bold">지급완료</p>
+                          <p className="text-xs text-emerald-600">{paidClaims.length}건</p>
+                        </div>
+                      </div>
+                      <p className="text-3xl font-black text-emerald-700">{totalPaid.toLocaleString()}원</p>
+                    </div>
+                    
+                    <div className="bg-amber-50 rounded-xl p-5 border border-amber-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                          <Calendar className="text-amber-600" size={20} />
+                        </div>
+                        <div>
+                          <p className="text-xs text-amber-700 font-bold">미지급</p>
+                          <p className="text-xs text-amber-600">{unpaidClaims.length}건</p>
+                        </div>
+                      </div>
+                      <p className="text-3xl font-black text-amber-700">{totalUnpaid.toLocaleString()}원</p>
+                    </div>
+                  </div>
+                  
+                  {/* 지급완료 내역 */}
+                  {paidClaims.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-black text-emerald-700 flex items-center gap-2">
+                        <Check size={20} />
+                        지급완료 ({paidClaims.length}건)
+                      </h3>
+                      {paidClaims.map((claim: LaborClaim) => (
+                        <div key={claim.id} className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">{claim.date}</p>
+                              <p className="text-xs text-emerald-600 font-bold mt-1">
+                                💰 지급일: {claim.paidAt ? new Date(claim.paidAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
+                              </p>
+                            </div>
+                            <p className="text-xl font-black text-emerald-700">{claim.totalAmount.toLocaleString()}원</p>
+                          </div>
+                          <div className="space-y-1">
+                            {claim.sites.map((site, idx) => {
+                              const totalHours = claim.sites.reduce((sum, s) => sum + s.hours, 0);
+                              const allocated = totalHours > 0 ? Math.round((site.hours / totalHours) * claim.totalAmount) : 0;
+                              return (
+                                <div key={site.id} className="flex justify-between items-center text-xs bg-white/50 px-3 py-2 rounded-lg">
+                                  <span className="font-bold text-slate-700">{site.siteName}</span>
+                                  <span className="text-emerald-600 font-bold">{allocated.toLocaleString()}원 ({site.hours}시간)</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* 미지급 내역 */}
+                  {unpaidClaims.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-black text-amber-700 flex items-center gap-2">
+                        <Calendar size={20} />
+                        미지급 ({unpaidClaims.length}건)
+                      </h3>
+                      {unpaidClaims.map((claim: LaborClaim) => (
+                        <div key={claim.id} className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">{claim.date}</p>
+                              <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold mt-1 ${
+                                claim.status === 'pending' ? 'bg-slate-100 text-slate-700' : 'bg-blue-100 text-blue-700'
+                              }`}>{claim.status === 'pending' ? '대기' : '승인'}</span>
+                            </div>
+                            <p className="text-xl font-black text-amber-700">{claim.totalAmount.toLocaleString()}원</p>
+                          </div>
+                          <div className="space-y-1">
+                            {claim.sites.map((site, idx) => {
+                              const totalHours = claim.sites.reduce((sum, s) => sum + s.hours, 0);
+                              const allocated = totalHours > 0 ? Math.round((site.hours / totalHours) * claim.totalAmount) : 0;
+                              return (
+                                <div key={site.id} className="flex justify-between items-center text-xs bg-white/50 px-3 py-2 rounded-lg">
+                                  <span className="font-bold text-slate-700">{site.siteName}</span>
+                                  <span className="text-amber-600 font-bold">{allocated.toLocaleString()}원 ({site.hours}시간)</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="p-6 border-t border-slate-200 flex gap-3">
+                  <button onClick={downloadWorkerCSV} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center justify-center gap-2">
+                    <Download size={20} />
+                    내역서 다운로드
+                  </button>
+                  <button onClick={() => setWorkerDetailModal(null)} className="px-8 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200">
+                    닫기
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </section>
     );
   };
