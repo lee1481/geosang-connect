@@ -483,9 +483,42 @@ const App: React.FC = () => {
               </select>
             </div>
             
-            <button onClick={onAddClaim} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-blue-700">
-              <Plus size={18} /> 청구 등록
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  // CSV 다운로드 (현장별 배분 금액 포함)
+                  let csvContent = "\uFEFF"; // BOM for Excel
+                  const headers = ['작업일', '일당명', '현장명', '작업시간', '배분금액', '총청구금액', '상태'];
+                  csvContent += headers.map(h => `"${h}"`).join(",") + "\n";
+                  
+                  filteredClaims.forEach((claim: LaborClaim) => {
+                    claim.sites.forEach((site) => {
+                      const row = [
+                        claim.date,
+                        claim.workerName,
+                        site.siteName,
+                        site.hours,
+                        site.allocatedAmount || 0,
+                        claim.totalAmount,
+                        claim.status === 'pending' ? '대기' : claim.status === 'approved' ? '승인' : '지급완료'
+                      ];
+                      csvContent += row.map(v => `"${v}"`).join(",") + "\n";
+                    });
+                  });
+                  
+                  const link = document.createElement("a");
+                  link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }));
+                  link.download = `인건비청구_${period}_${new Date().toISOString().split('T')[0]}.csv`;
+                  link.click();
+                }}
+                className="bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-emerald-700"
+              >
+                <Download size={18} /> 손익표 다운로드
+              </button>
+              <button onClick={onAddClaim} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-blue-700">
+                <Plus size={18} /> 청구 등록
+              </button>
+            </div>
           </div>
         </div>
         
@@ -514,15 +547,34 @@ const App: React.FC = () => {
                       <span className="font-bold">작업일:</span> {claim.date}
                     </div>
                     
-                    {/* 현장 목록 */}
+                    {/* 현장 목록 + 금액 배분 */}
                     <div className="space-y-1.5 mb-3">
-                      {claim.sites.map((site, idx) => (
-                        <div key={site.id} className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg">
-                          <span className="text-xs font-black text-blue-600">현장{idx + 1}:</span>
-                          <span className="text-xs font-bold text-slate-900">{site.siteName}</span>
-                          <span className="text-xs text-slate-500">• {site.hours}시간</span>
-                        </div>
-                      ))}
+                      {(() => {
+                        const totalHours = claim.sites.reduce((sum, s) => sum + s.hours, 0);
+                        return claim.sites.map((site, idx) => {
+                          const percentage = totalHours > 0 ? (site.hours / totalHours) * 100 : 0;
+                          const allocated = totalHours > 0 ? Math.round((site.hours / totalHours) * claim.totalAmount) : 0;
+                          return (
+                            <div key={site.id} className="bg-blue-50 px-3 py-2 rounded-lg">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black text-blue-600">현장{idx + 1}:</span>
+                                  <span className="text-xs font-bold text-slate-900">{site.siteName}</span>
+                                </div>
+                                <span className="text-xs font-black text-blue-600">{allocated.toLocaleString()}원</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                                <span>{site.hours}시간</span>
+                                <span>•</span>
+                                <span>{percentage.toFixed(1)}%</span>
+                                <div className="flex-1 bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                  <div className="bg-blue-500 h-full rounded-full" style={{ width: `${percentage}%` }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                     
                     {/* 금액 세부내역 */}
@@ -1513,8 +1565,17 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
     }
     
     const totalAmount = calculateTotal();
+    const totalHours = formData.sites!.reduce((sum, s) => sum + s.hours, 0);
+    
+    // 작업시간 비율로 금액 자동 배분
+    const sitesWithAllocation = formData.sites!.map(site => ({
+      ...site,
+      allocatedAmount: totalHours > 0 ? Math.round((site.hours / totalHours) * totalAmount) : 0
+    }));
+    
     onSubmit({
       ...formData,
+      sites: sitesWithAllocation,
       totalAmount
     } as LaborClaim);
   };

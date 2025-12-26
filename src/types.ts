@@ -60,6 +60,7 @@ export interface WorkSite {
   id: string;
   siteName: string;            // 현장명 (예: 컴포즈커피 인천점)
   hours: number;               // 작업 시간
+  allocatedAmount?: number;    // 배분된 금액 (시간 비율로 자동 계산)
 }
 
 // 청구 금액 세부 내역
