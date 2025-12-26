@@ -397,6 +397,18 @@ const App: React.FC = () => {
     const filteredClaims = useMemo(() => {
       let filtered = claims;
       
+      // 검색어 필터 (최우선 - 검색 시 다른 필터 무시)
+      if (searchTerm.trim()) {
+        const lower = searchTerm.toLowerCase();
+        filtered = filtered.filter((c: LaborClaim) => 
+          c.workerName.toLowerCase().includes(lower) ||
+          c.workerPhone?.toLowerCase().includes(lower) ||
+          c.sites.some((s: WorkSite) => s.siteName.toLowerCase().includes(lower))
+        );
+        // 검색 시에는 날짜순 정렬만 하고 반환
+        return filtered.sort((a: LaborClaim, b: LaborClaim) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      }
+      
       // 일당 필터
       if (selectedWorker !== 'all') {
         filtered = filtered.filter((c: LaborClaim) => c.workerId === selectedWorker);
@@ -417,7 +429,7 @@ const App: React.FC = () => {
       });
       
       return filtered.sort((a: LaborClaim, b: LaborClaim) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [claims, period, selectedWorker]);
+    }, [claims, period, selectedWorker, searchTerm]);
     
     const totalAmount = filteredClaims.reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
     const pendingAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'pending').reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
@@ -428,7 +440,13 @@ const App: React.FC = () => {
         {/* 헤더 */}
         <div className="mb-6">
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">💰 인건비 청구 관리</h2>
-          <p className="text-xs md:text-sm text-slate-600 mt-2">외주 일당의 인건비 청구 내역을 간편하게 관리하세요</p>
+          <p className="text-xs md:text-sm text-slate-600 mt-2">
+            {searchTerm ? (
+              <span className="text-blue-600 font-bold">'{searchTerm}' 검색 결과: {filteredClaims.length}건</span>
+            ) : (
+              '외주 일당의 인건비 청구 내역을 간편하게 관리하세요'
+            )}
+          </p>
         </div>
         
         {/* 통계 카드 */}
