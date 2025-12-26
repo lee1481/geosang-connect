@@ -279,6 +279,42 @@ const App: React.FC = () => {
                 <FileText size={16} />
               </button>
             )}
+            {contact.attachments && contact.attachments.length > 0 && (
+              <div className="relative group/attach">
+                <button 
+                  className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                  title={`첨부파일 ${contact.attachments.length}개`}
+                >
+                  <Upload size={16} />
+                  <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[8px] font-black rounded-full w-4 h-4 flex items-center justify-center">
+                    {contact.attachments.length}
+                  </span>
+                </button>
+                <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-2xl border border-slate-200 p-2 min-w-[200px] hidden group-hover/attach:block z-50">
+                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 px-2">첨부파일</div>
+                  {contact.attachments.map((file, idx) => (
+                    <button
+                      key={idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const link = document.createElement('a');
+                        link.href = `data:${file.mimeType};base64,${file.data}`;
+                        link.download = file.name;
+                        link.click();
+                      }}
+                      className="w-full flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg transition-colors text-left"
+                    >
+                      <FileText size={12} className="text-blue-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] font-bold text-slate-900 truncate">{file.name}</div>
+                        <div className="text-[8px] text-slate-400">{(file.size / 1024).toFixed(1)} KB</div>
+                      </div>
+                      <Download size={10} className="text-slate-400 flex-shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {canManage && (
               <>
                 <button onClick={onEdit} className="text-slate-300 hover:text-blue-600 p-2"><Pencil size={16} /></button>
@@ -362,6 +398,7 @@ const App: React.FC = () => {
     const showDepartmentFeature = !isOutsource;
     const licenseInputRef = useRef<HTMLInputElement>(null);
     const cardInputRef = useRef<HTMLInputElement>(null);
+    const attachmentInputRef = useRef<HTMLInputElement>(null);
 
     const [formData, setFormData] = useState<Partial<Contact>>(() => {
       if (initialData) return { ...initialData };
@@ -390,6 +427,43 @@ const App: React.FC = () => {
     const [newItemInput, setNewItemInput] = useState('');
     const [isOcrLoading, setIsOcrLoading] = useState(false);
     const [isCardOcrLoading, setIsCardOcrLoading] = useState(false);
+
+    const handleAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+      
+      const newAttachments = Array.from(files).map(file => {
+        return new Promise<{ data: string; name: string; mimeType: string; size: number }>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const result = event.target?.result as string;
+            const base64 = result.split(',')[1];
+            resolve({
+              data: base64,
+              name: file.name,
+              mimeType: file.type,
+              size: file.size
+            });
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      Promise.all(newAttachments).then(attachments => {
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...(prev.attachments || []), ...attachments]
+        }));
+        if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+      });
+    };
+
+    const handleRemoveAttachment = (index: number) => {
+      setFormData(prev => ({
+        ...prev,
+        attachments: (prev.attachments || []).filter((_, i) => i !== index)
+      }));
+    };
 
     const handleStaffChange = (index: number, field: keyof Staff, value: any) => {
       const newList = [...(formData.staffList || [])];
@@ -719,6 +793,51 @@ const App: React.FC = () => {
                 ))}
               </div>
             </div>
+            
+            <div className="border-t-2 border-slate-100 pt-6 lg:pt-8">
+              <div className="flex justify-between items-center mb-4 lg:mb-6">
+                <h3 className="text-lg lg:text-xl font-black">첨부파일</h3>
+                <div className="flex items-center gap-2">
+                  <input type="file" ref={attachmentInputRef} className="hidden" multiple onChange={handleAttachmentUpload} />
+                  <button 
+                    type="button" 
+                    onClick={() => attachmentInputRef.current?.click()}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-blue-700 transition-all"
+                  >
+                    <Upload size={14}/> 파일 첨부
+                  </button>
+                </div>
+              </div>
+              
+              {formData.attachments && formData.attachments.length > 0 && (
+                <div className="space-y-2">
+                  {formData.attachments.map((file, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <FileText size={16} className="text-blue-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-slate-900 truncate">{file.name}</div>
+                        <div className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(1)} KB</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAttachment(idx)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {(!formData.attachments || formData.attachments.length === 0) && (
+                <div className="text-center py-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                  <Upload size={24} className="mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs text-slate-400">첨부파일이 없습니다</p>
+                </div>
+              )}
+            </div>
+            
             <button type="submit" className="w-full bg-blue-600 text-white py-4 lg:py-5 rounded-2xl lg:rounded-[1.5rem] font-black text-sm lg:text-lg shadow-xl hover:bg-blue-700 transition-all sticky bottom-0 z-10">저장하기</button>
           </form>
         </div>

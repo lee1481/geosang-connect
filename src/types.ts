@@ -46,5 +46,11 @@ export interface Contact {
     name: string;
     mimeType: string;
   };
+  attachments?: {
+    data: string;
+    name: string;
+    mimeType: string;
+    size: number;
+  }[];
   staffList: Staff[];
 }
