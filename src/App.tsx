@@ -281,13 +281,13 @@ const App: React.FC = () => {
   const ContactCard = ({ contact, onEdit, onDelete, canManage }: any) => {
     const isOutsource = contact.category === CategoryType.OUTSOURCE;
     return (
-      <div className="bg-white rounded-2xl lg:rounded-[2rem] p-5 lg:p-8 shadow-sm hover:shadow-xl transition-all border border-slate-100 flex flex-col h-full relative group">
-        <div className="flex justify-between items-start mb-4 lg:mb-6">
+      <div className="bg-white rounded-xl md:rounded-2xl lg:rounded-[2rem] p-4 md:p-5 lg:p-8 shadow-sm hover:shadow-xl transition-all border border-slate-100 flex flex-col h-full relative group">
+        <div className="flex justify-between items-start mb-3 md:mb-4 lg:mb-6">
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap gap-1">
-              <span className="px-3 py-1 rounded-md text-[11px] font-black bg-blue-600 text-white uppercase tracking-widest shadow-sm">{contact.industry || contact.subCategory || getCategoryName(contact.category)}</span>
+              <span className="px-2 md:px-3 py-0.5 md:py-1 rounded text-[10px] md:text-[11px] font-black bg-blue-600 text-white uppercase tracking-widest shadow-sm">{contact.industry || contact.subCategory || getCategoryName(contact.category)}</span>
             </div>
-            <h3 className="text-lg lg:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate">{isOutsource ? contact.staffList[0]?.name : contact.brandName}</h3>
+            <h3 className="text-base md:text-lg lg:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate">{isOutsource ? contact.staffList[0]?.name : contact.brandName}</h3>
             {isOutsource && contact.staffList[0]?.rating && (
               <div className="flex gap-0.5 mt-0.5 text-amber-400">{Array.from({length: 5}).map((_, i) => <Star key={i} size={12} fill={i < (contact.staffList[0].rating || 0) ? "currentColor" : "none"} />)}</div>
             )}
@@ -927,11 +927,11 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100 font-sans tracking-tight text-slate-900">
-      <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-[60] relative">
+      {/* 좌측 사이드바: 모바일에서는 숨김, 태블릿 이상에서 표시 */}
+      <aside className="hidden md:flex md:w-64 lg:w-72 bg-slate-900 text-white flex-col shadow-2xl z-[60] relative">
         <div className="p-6 lg:p-8">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-xl lg:text-2xl font-black tracking-tighter flex items-center gap-2"><Layers className="text-blue-400" /> 거상커넥트</h1>
-
+            <h1 className="text-lg md:text-xl lg:text-2xl font-black tracking-tighter flex items-center gap-2"><Layers className="text-blue-400" /> 거상커넥트</h1>
           </div>
           <div className="flex flex-col gap-1 mt-1">
             <div className="flex items-center gap-2">
@@ -966,42 +966,116 @@ const App: React.FC = () => {
         </div>
       </aside>
 
+      {/* 모바일 사이드바 (슬라이딩) */}
+      <aside className={`md:hidden fixed inset-y-0 left-0 w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-[70] transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-xl font-black tracking-tighter flex items-center gap-2"><Layers className="text-blue-400" /> 거상커넥트</h1>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-white">
+              <X size={20}/>
+            </button>
+          </div>
+          <div className="flex flex-col gap-1 mt-1">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+              <span className="text-[11px] text-slate-200 font-bold">{currentUser.name}</span>
+            </div>
+            {isAdmin && <span className="text-[8px] bg-blue-600/30 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-black w-fit uppercase tracking-widest">Master Admin</span>}
+          </div>
+        </div>
 
+        <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto pb-8 scrollbar-hide">
+          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsMobileMenuOpen(false); }} />
+          <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
+          <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<UtensilsCrossed size={18} />} label="자영업(매출처)" active={activeCategory === CategoryType.SALES} onClick={() => { setActiveCategory(CategoryType.SALES); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsMobileMenuOpen(false); }} />
+        </nav>
+
+        <div className="p-4 border-t border-white/5 space-y-2">
+          {isAdmin && (
+            <button onClick={() => { setIsAdminModalOpen(true); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-blue-400 hover:bg-blue-500/10 transition-all text-xs font-bold border border-blue-500/20">
+              <ShieldCheck size={16} /> 권한 관리
+            </button>
+          )}
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-all text-xs font-bold">
+            <LogOut size={16} /> 로그아웃
+          </button>
+        </div>
+      </aside>
+
+      {/* 모바일 오버레이 */}
+      {isMobileMenuOpen && <div className="md:hidden fixed inset-0 bg-black/50 z-[60]" onClick={() => setIsMobileMenuOpen(false)}></div>}
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
-        <header className="h-16 lg:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-10 sticky top-0 z-40 shadow-sm gap-2">
-
+        {/* 헤더: 반응형 레이아웃 */}
+        <header className="h-14 md:h-16 lg:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-3 md:px-6 lg:px-10 sticky top-0 z-40 shadow-sm gap-2">
+          {/* 모바일 메뉴 버튼 */}
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)} 
+            className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg flex-shrink-0"
+          >
+            <Menu size={24} />
+          </button>
           
-          <div className="flex-1 max-w-xl relative">
-            <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder="통합 검색..." className="w-full pl-10 lg:pl-12 pr-4 py-2 lg:py-3 border-2 border-slate-100 rounded-xl lg:rounded-2xl bg-slate-50 focus:outline-none focus:border-blue-500 transition-all text-xs lg:text-sm font-medium" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          {/* 검색창: 반응형 크기 조정 */}
+          <div className="flex-1 max-w-xs md:max-w-md lg:max-w-xl relative">
+            <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="검색..." 
+              className="w-full pl-9 lg:pl-12 pr-3 py-2 lg:py-3 border-2 border-slate-100 rounded-lg lg:rounded-2xl bg-slate-50 focus:outline-none focus:border-blue-500 transition-all text-xs lg:text-sm font-medium" 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+            />
           </div>
 
-          <div className="flex items-center gap-1.5 lg:gap-3">
+          {/* 액션 버튼들: 반응형 레이아웃 */}
+          <div className="flex items-center gap-1 md:gap-2 lg:gap-3">
             {isAdmin && (
               <>
                 <input type="file" ref={csvInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleCSVUpload} />
-                <button onClick={() => csvInputRef.current?.click()} className="p-2.5 px-4 bg-white border-2 border-emerald-500 text-emerald-600 rounded-xl hover:bg-emerald-50 shadow-sm font-bold flex items-center gap-2" title="CSV 대량 업로드">
-                  <Upload size={18} /> <span className="text-sm">파일업로드</span>
+                {/* PC: 전체 버튼, 모바일: 아이콘만 */}
+                <button 
+                  onClick={() => csvInputRef.current?.click()} 
+                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-white border-2 border-emerald-500 text-emerald-600 rounded-lg md:rounded-xl hover:bg-emerald-50 shadow-sm font-bold flex items-center gap-2" 
+                  title="파일업로드"
+                >
+                  <Upload size={16} className="md:w-[18px] md:h-[18px]" /> 
+                  <span className="hidden md:inline text-xs lg:text-sm">파일업로드</span>
                 </button>
-                <button onClick={handleCSVDownload} className="p-2.5 px-4 bg-white border-2 border-blue-500 text-blue-600 rounded-xl hover:bg-blue-50 shadow-sm font-bold flex items-center gap-2" title="명단 추출">
-                  <Download size={18} /> <span className="text-sm">다운로드</span>
+                <button 
+                  onClick={handleCSVDownload} 
+                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-white border-2 border-blue-500 text-blue-600 rounded-lg md:rounded-xl hover:bg-blue-50 shadow-sm font-bold flex items-center gap-2" 
+                  title="다운로드"
+                >
+                  <Download size={16} className="md:w-[18px] md:h-[18px]" /> 
+                  <span className="hidden md:inline text-xs lg:text-sm">다운로드</span>
                 </button>
               </>
             )}
-            <button onClick={() => { setEditingContact(null); setIsModalOpen(true); }} className="bg-blue-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-100">
-              <Plus size={20} /> <span className="text-sm">+ 신규등록</span>
+            <button 
+              onClick={() => { setEditingContact(null); setIsModalOpen(true); }} 
+              className="bg-blue-600 text-white px-3 md:px-4 lg:px-5 py-2 md:py-2.5 lg:py-3 rounded-lg md:rounded-xl font-bold hover:bg-blue-700 flex items-center gap-1.5 md:gap-2 shadow-lg shadow-blue-100 flex-shrink-0"
+            >
+              <Plus size={18} className="md:w-5 md:h-5" /> 
+              <span className="text-xs md:text-sm">신규등록</span>
             </button>
           </div>
         </header>
 
-        <section className="flex-1 overflow-y-auto p-4 lg:p-10 scroll-smooth">
-          <div className="mb-6 lg:mb-10">
-            <h2 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">{getCategoryName(activeCategory)}</h2>
-            <p className="text-[10px] lg:text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">{searchTerm ? `'${searchTerm}' 결과: ` : '데이터 현황: '}{filteredContacts.length}건</p>
+        <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth">
+          <div className="mb-4 md:mb-6 lg:mb-10">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">{getCategoryName(activeCategory)}</h2>
+            <p className="text-[10px] md:text-xs lg:text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">{searchTerm ? `'${searchTerm}' 결과: ` : '데이터 현황: '}{filteredContacts.length}건</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8 pb-20">
+          {/* 반응형 그리드: 모바일 1열, 태블릿 2열, PC 3열 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5 lg:gap-8 pb-20">
             {filteredContacts.map(contact => (
               <ContactCard key={contact.id} contact={contact} canManage={isAdmin} onEdit={() => { setEditingContact(contact); setIsModalOpen(true); }} onDelete={() => { if(confirm('삭제하시겠습니까?')) setContacts(prev => prev.filter(c => c.id !== contact.id)) }} />
             ))}
