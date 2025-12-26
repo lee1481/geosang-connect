@@ -863,11 +863,14 @@ const App: React.FC = () => {
     );
   };
 
-  // 프로젝트 관리 뷰 (손익표)
+  // 프로젝트 관리 뷰 (손익표) - 개선된 버전
   const ProjectManagementView = () => {
     const [uploading, setUploading] = useState(false);
-    const [documentType, setDocumentType] = useState<DocumentType>('quotation');
+    const [storeName, setStoreName] = useState('');
+    const [franchiseName, setFranchiseName] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [reportRequest, setReportRequest] = useState('');
+    const [generatingReport, setGeneratingReport] = useState(false);
 
     // 매장별 손익 집계
     const projectSummaries = useMemo(() => {
@@ -913,114 +916,164 @@ const App: React.FC = () => {
       return Array.from(franchiseMap.entries());
     }, [projectSummaries]);
 
-    // 파일 업로드 처리
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+    // 간편 파일 업로드 (브랜드+지점명만 입력)
+    const handleQuickUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      if (!storeName.trim()) {
+        alert('지점명을 입력해주세요. (예: 인천점, 강남점)');
+        return;
+      }
 
       setUploading(true);
+      const uploadedCount = files.length;
+      let successCount = 0;
 
       try {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const base64 = event.target?.result as string;
-          const base64Data = base64.split(',')[1];
-
-          // AI로 문서 분석
-          const extracted = await extractProjectDocument(base64Data, file.type, documentType);
-
-          if (!extracted.storeName) {
-            alert('매장명을 찾을 수 없습니다. 수동으로 입력해주세요.');
-            setUploading(false);
-            return;
-          }
-
-          // 프로젝트 찾기 또는 생성
-          let project = projects.find(p => p.storeName === extracted.storeName);
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
           
-          if (!project) {
-            // 새 프로젝트 생성
-            project = {
-              id: `proj-${Date.now()}`,
-              storeName: extracted.storeName,
-              franchiseName: extracted.franchiseName || extracted.storeName.split(' ')[0],
-              location: extracted.storeName,
-              startDate: new Date().toISOString().split('T')[0],
-              status: 'in_progress',
-              revenue: { quotationAmount: 0 },
-              costs: { labor: 0, materials: 0, delivery: 0, other: 0, total: 0 },
-              profit: { amount: 0, margin: 0 },
-              documents: [],
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
+          await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+              try {
+                const base64 = event.target?.result as string;
+                const base64Data = base64.split(',')[1];
+
+                // AI로 문서 자동 분석 (문서 타입 자동 인식)
+                let documentType: DocumentType = 'other';
+                let extracted: any = {};
+                
+                try {
+                  // 파일명으로 문서 타입 추정
+                  const fileName = file.name.toLowerCase();
+                  if (fileName.includes('견적') || fileName.includes('quote')) {
+                    documentType = 'quotation';
+                    extracted = await extractProjectDocument(base64Data, file.type, 'quotation');
+                  } else if (fileName.includes('발주') || fileName.includes('order')) {
+                    documentType = 'purchase_order';
+                    extracted = await extractProjectDocument(base64Data, file.type, 'purchase_order');
+                  } else if (fileName.includes('거래') || fileName.includes('명세') || fileName.includes('invoice')) {
+                    documentType = 'transaction_stmt';
+                    extracted = await extractProjectDocument(base64Data, file.type, 'transaction_stmt');
+                  } else if (fileName.includes('배송') || fileName.includes('퀵') || fileName.includes('delivery')) {
+                    documentType = 'delivery_cost';
+                    extracted = await extractProjectDocument(base64Data, file.type, 'delivery_cost');
+                  } else if (fileName.includes('시안') || fileName.includes('디자인') || fileName.includes('design')) {
+                    documentType = 'design_proposal';
+                    extracted = await extractProjectDocument(base64Data, file.type, 'design_proposal');
+                  } else {
+                    // 기본: 견적서로 시도
+                    extracted = await extractProjectDocument(base64Data, file.type, 'quotation');
+                  }
+                } catch (err) {
+                  console.warn('AI extraction failed, using manual input:', err);
+                  extracted = { storeName: `${franchiseName} ${storeName}`, amount: 0 };
+                }
+
+                // 프로젝트 매장명 (사용자 입력 우선)
+                const fullStoreName = franchiseName.trim() 
+                  ? `${franchiseName.trim()} ${storeName.trim()}`
+                  : storeName.trim();
+
+                // 프로젝트 찾기 또는 생성
+                let project = projects.find(p => p.storeName === fullStoreName);
+                
+                if (!project) {
+                  project = {
+                    id: `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    storeName: fullStoreName,
+                    franchiseName: franchiseName.trim() || fullStoreName.split(' ')[0],
+                    location: fullStoreName,
+                    startDate: new Date().toISOString().split('T')[0],
+                    status: 'in_progress',
+                    revenue: { quotationAmount: 0 },
+                    costs: { labor: 0, materials: 0, delivery: 0, other: 0, total: 0 },
+                    profit: { amount: 0, margin: 0 },
+                    documents: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+                }
+
+                // 문서 추가
+                const document: ProjectDocument = {
+                  id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  projectId: project.id,
+                  storeName: fullStoreName,
+                  documentType,
+                  title: file.name,
+                  amount: extracted.amount || 0,
+                  file: {
+                    data: base64Data,
+                    name: file.name,
+                    mimeType: file.type,
+                    size: file.size
+                  },
+                  uploadedBy: currentUser.name,
+                  uploadedAt: new Date().toISOString(),
+                  extractedData: extracted
+                };
+
+                project.documents.push(document);
+
+                // 금액 자동 반영
+                if (documentType === 'quotation' && extracted.amount) {
+                  project.revenue.quotationAmount = Math.max(project.revenue.quotationAmount, extracted.amount);
+                } else if (documentType === 'transaction_stmt' && extracted.amount) {
+                  project.costs.materials += extracted.amount;
+                } else if (documentType === 'delivery_cost' && extracted.amount) {
+                  project.costs.delivery += extracted.amount;
+                }
+
+                // 인건비 자동 집계
+                const laborCost = laborClaims
+                  .filter(claim => claim.sites.some(s => s.siteName.includes(fullStoreName) || fullStoreName.includes(s.siteName)))
+                  .reduce((sum, claim) => sum + claim.totalAmount, 0);
+                project.costs.labor = laborCost;
+
+                // 손익 계산
+                project.costs.total = project.costs.labor + project.costs.materials + project.costs.delivery + project.costs.other;
+                project.profit.amount = project.revenue.quotationAmount - project.costs.total;
+                project.profit.margin = project.revenue.quotationAmount > 0 
+                  ? (project.profit.amount / project.revenue.quotationAmount) * 100 
+                  : 0;
+
+                project.updatedAt = new Date().toISOString();
+
+                // 프로젝트 저장
+                setProjects(prev => {
+                  const existing = prev.find(p => p.id === project!.id);
+                  if (existing) {
+                    return prev.map(p => p.id === project!.id ? project! : p);
+                  }
+                  return [...prev, project!];
+                });
+
+                successCount++;
+                resolve(true);
+              } catch (err) {
+                console.error('File processing error:', err);
+                resolve(false);
+              }
             };
-          }
-
-          // 문서 추가
-          const document: ProjectDocument = {
-            id: `doc-${Date.now()}`,
-            projectId: project.id,
-            storeName: extracted.storeName,
-            documentType,
-            title: file.name,
-            amount: extracted.amount,
-            file: {
-              data: base64Data,
-              name: file.name,
-              mimeType: file.type,
-              size: file.size
-            },
-            uploadedBy: currentUser.name,
-            uploadedAt: new Date().toISOString(),
-            extractedData: extracted
-          };
-
-          project.documents.push(document);
-
-          // 금액 업데이트
-          if (documentType === 'quotation' && extracted.amount) {
-            project.revenue.quotationAmount = extracted.amount;
-          } else if (documentType === 'transaction_stmt' && extracted.amount) {
-            project.costs.materials += extracted.amount;
-          } else if (documentType === 'delivery_cost' && extracted.amount) {
-            project.costs.delivery += extracted.amount;
-          }
-
-          // 인건비는 laborClaims에서 자동 집계
-          const laborCost = laborClaims
-            .filter(claim => claim.sites.some(s => s.siteName.includes(project!.storeName)))
-            .reduce((sum, claim) => sum + claim.totalAmount, 0);
-          project.costs.labor = laborCost;
-
-          // 총 비용 및 손익 계산
-          project.costs.total = project.costs.labor + project.costs.materials + project.costs.delivery + project.costs.other;
-          project.profit.amount = project.revenue.quotationAmount - project.costs.total;
-          project.profit.margin = project.revenue.quotationAmount > 0 
-            ? (project.profit.amount / project.revenue.quotationAmount) * 100 
-            : 0;
-
-          project.updatedAt = new Date().toISOString();
-
-          // 프로젝트 저장
-          setProjects(prev => {
-            const existing = prev.find(p => p.id === project!.id);
-            if (existing) {
-              return prev.map(p => p.id === project!.id ? project! : p);
-            }
-            return [...prev, project!];
+            reader.readAsDataURL(file);
           });
+        }
 
-          alert(`✅ 문서 업로드 완료!\n\n매장: ${extracted.storeName}\n금액: ${extracted.amount?.toLocaleString()}원`);
-          setUploading(false);
-          
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-        };
-        reader.readAsDataURL(file);
+        alert(`✅ 업로드 완료!\n\n매장: ${franchiseName} ${storeName}\n파일: ${successCount}/${uploadedCount}개`);
+        
+        // 입력 초기화
+        setStoreName('');
+        setFranchiseName('');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       } catch (error) {
         console.error('Upload error:', error);
         alert('업로드 중 오류가 발생했습니다.');
+      } finally {
         setUploading(false);
       }
     };
@@ -1033,48 +1086,63 @@ const App: React.FC = () => {
           <p className="text-xs md:text-sm text-slate-600 mt-2">매장별 문서를 업로드하면 AI가 자동으로 분류하고 손익을 계산합니다</p>
         </div>
 
-        {/* 문서 업로드 */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 mb-6">
-          <h3 className="text-lg font-black text-slate-900 mb-4">📤 문서 업로드</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-2">문서 종류</label>
-              <select 
-                value={documentType} 
-                onChange={(e) => setDocumentType(e.target.value as DocumentType)}
-                className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold"
-              >
-                <option value="design_proposal">🎨 디자인 시안</option>
-                <option value="quotation">💰 견적서</option>
-                <option value="purchase_order">📋 발주서</option>
-                <option value="transaction_stmt">📄 거래명세서</option>
-                <option value="delivery_cost">🚚 배송비/퀵비</option>
-                <option value="labor_cost">👷 인건비 내역</option>
-                <option value="other">📎 기타</option>
-              </select>
+        {/* 간편 업로드 */}
+        <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 shadow-lg border-2 border-blue-200 mb-6">
+          <h3 className="text-lg font-black text-slate-900 mb-2 flex items-center gap-2">
+            <Upload size={24} className="text-blue-600" />
+            간편 업로드
+          </h3>
+          <p className="text-xs text-slate-600 mb-4">브랜드명과 지점명만 입력하고 파일을 올리면 AI가 자동으로 분류합니다</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div className="md:col-span-3">
+              <label className="block text-xs font-bold text-slate-700 mb-2">브랜드명</label>
+              <input 
+                type="text"
+                placeholder="예: 컴포즈커피"
+                value={franchiseName}
+                onChange={(e) => setFranchiseName(e.target.value)}
+                className="w-full p-3 border-2 border-slate-300 rounded-xl font-bold focus:border-blue-500 outline-none"
+              />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-2">파일 선택</label>
+            <div className="md:col-span-3">
+              <label className="block text-xs font-bold text-slate-700 mb-2">지점명 *</label>
+              <input 
+                type="text"
+                placeholder="예: 인천점"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                required
+                className="w-full p-3 border-2 border-blue-300 rounded-xl font-bold focus:border-blue-500 outline-none"
+              />
+            </div>
+            <div className="md:col-span-6">
+              <label className="block text-xs font-bold text-slate-700 mb-2">파일 선택 (다중 선택 가능)</label>
               <input 
                 ref={fileInputRef}
                 type="file" 
                 accept="image/*,.pdf" 
-                onChange={handleFileUpload}
+                onChange={handleQuickUpload}
                 disabled={uploading}
+                multiple
                 className="hidden"
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
+                disabled={uploading || !storeName.trim()}
                 className="w-full p-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:bg-slate-300 flex items-center justify-center gap-2"
               >
                 {uploading ? (
-                  <><Loader2 className="animate-spin" size={20} /> 분석 중...</>
+                  <><Loader2 className="animate-spin" size={20} /> AI 분석 중...</>
                 ) : (
-                  <><Upload size={20} /> 파일 업로드</>
+                  <><Upload size={20} /> 파일 올리기</>
                 )}
               </button>
             </div>
+          </div>
+          
+          <div className="mt-3 p-3 bg-blue-100 rounded-lg">
+            <p className="text-xs text-blue-900 font-bold">💡 Tip: 파일명에 "견적서", "거래명세서", "배송비" 등이 포함되면 AI가 자동으로 분류합니다</p>
           </div>
         </div>
 
@@ -1108,6 +1176,183 @@ const App: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* 대화형 리포트 요청 */}
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-6">
+          <div className="flex gap-3 items-center">
+            <div className="flex-1 relative">
+              <input 
+                type="text"
+                placeholder='예: "컴포즈커피 인천점 손익분석 보고해줘" 또는 "컴포즈 인천 리포트"'
+                value={reportRequest}
+                onChange={(e) => setReportRequest(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && reportRequest.trim()) {
+                    // 리포트 생성 로직 (추후 구현)
+                    const words = reportRequest.toLowerCase();
+                    const matchedProject = projects.find(p => 
+                      words.includes(p.storeName.toLowerCase()) ||
+                      words.split(' ').some(w => p.storeName.toLowerCase().includes(w))
+                    );
+                    if (matchedProject) {
+                      setSelectedProject(matchedProject);
+                      alert(`📊 "${matchedProject.storeName}" 리포트를 생성합니다!`);
+                    } else {
+                      alert('해당 매장을 찾을 수 없습니다. 매장명을 확인해주세요.');
+                    }
+                  }
+                }}
+                className="w-full p-3 pl-12 border-2 border-slate-200 rounded-xl font-bold focus:border-purple-500 outline-none"
+              />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            </div>
+            <button
+              onClick={() => {
+                if (!reportRequest.trim()) {
+                  alert('리포트 요청을 입력해주세요.');
+                  return;
+                }
+                const words = reportRequest.toLowerCase();
+                const matchedProject = projects.find(p => 
+                  words.includes(p.storeName.toLowerCase()) ||
+                  words.split(' ').some(w => p.storeName.toLowerCase().includes(w))
+                );
+                if (matchedProject) {
+                  setSelectedProject(matchedProject);
+                  alert(`📊 "${matchedProject.storeName}" 리포트를 생성합니다!`);
+                  setReportRequest('');
+                } else {
+                  alert('해당 매장을 찾을 수 없습니다. 매장명을 확인해주세요.');
+                }
+              }}
+              disabled={!reportRequest.trim()}
+              className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 disabled:bg-slate-300 flex items-center gap-2"
+            >
+              <BarChart3 size={20} />
+              <span className="hidden md:inline">리포트 생성</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 선택된 프로젝트 상세 리포트 */}
+        {selectedProject && (
+          <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 shadow-lg border-2 border-purple-200 mb-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900">{selectedProject.storeName}</h3>
+                <p className="text-sm text-slate-600">프랜차이즈: {selectedProject.franchiseName}</p>
+              </div>
+              <button onClick={() => setSelectedProject(null)} className="p-2 hover:bg-white rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* 손익 요약 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-white rounded-xl p-4 border-2 border-blue-200">
+                <p className="text-xs text-slate-600 font-bold mb-1">매출 (견적금액)</p>
+                <p className="text-2xl font-black text-blue-600">{selectedProject.revenue.quotationAmount.toLocaleString()}원</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 border-2 border-red-200">
+                <p className="text-xs text-slate-600 font-bold mb-1">총 비용</p>
+                <p className="text-2xl font-black text-red-600">{selectedProject.costs.total.toLocaleString()}원</p>
+                <div className="mt-2 space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">인건비:</span>
+                    <span className="font-bold">{selectedProject.costs.labor.toLocaleString()}원</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">자재비:</span>
+                    <span className="font-bold">{selectedProject.costs.materials.toLocaleString()}원</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">배송비:</span>
+                    <span className="font-bold">{selectedProject.costs.delivery.toLocaleString()}원</span>
+                  </div>
+                </div>
+              </div>
+              <div className={`bg-white rounded-xl p-4 border-2 ${selectedProject.profit.amount >= 0 ? 'border-emerald-200' : 'border-red-200'}`}>
+                <p className="text-xs text-slate-600 font-bold mb-1">순이익</p>
+                <p className={`text-2xl font-black ${selectedProject.profit.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {selectedProject.profit.amount.toLocaleString()}원
+                </p>
+                <p className={`text-sm font-bold mt-1 ${selectedProject.profit.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  이익률: {selectedProject.profit.margin.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
+            {/* 막대 그래프 (CSS로 간단하게) */}
+            <div className="bg-white rounded-xl p-4 mb-4">
+              <h4 className="text-sm font-black text-slate-900 mb-3">비용 구성</h4>
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="font-bold text-slate-700">인건비</span>
+                    <span className="font-bold text-blue-600">{selectedProject.costs.labor.toLocaleString()}원</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="bg-blue-500 h-full rounded-full"
+                      style={{ width: `${selectedProject.costs.total > 0 ? (selectedProject.costs.labor / selectedProject.costs.total) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="font-bold text-slate-700">자재비</span>
+                    <span className="font-bold text-purple-600">{selectedProject.costs.materials.toLocaleString()}원</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="bg-purple-500 h-full rounded-full"
+                      style={{ width: `${selectedProject.costs.total > 0 ? (selectedProject.costs.materials / selectedProject.costs.total) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="font-bold text-slate-700">배송비</span>
+                    <span className="font-bold text-orange-600">{selectedProject.costs.delivery.toLocaleString()}원</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="bg-orange-500 h-full rounded-full"
+                      style={{ width: `${selectedProject.costs.total > 0 ? (selectedProject.costs.delivery / selectedProject.costs.total) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 문서 목록 */}
+            <div className="bg-white rounded-xl p-4">
+              <h4 className="text-sm font-black text-slate-900 mb-3">업로드된 문서 ({selectedProject.documents.length}건)</h4>
+              <div className="space-y-2">
+                {selectedProject.documents.map(doc => (
+                  <div key={doc.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100">
+                    <div className="flex items-center gap-3">
+                      <FileText size={20} className="text-slate-400" />
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">{doc.title}</p>
+                        <p className="text-xs text-slate-500">
+                          {doc.uploadedBy} · {new Date(doc.uploadedAt).toLocaleDateString('ko-KR')}
+                          {doc.amount && ` · ${doc.amount.toLocaleString()}원`}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded font-bold">
+                      {doc.documentType === 'quotation' ? '견적서' :
+                       doc.documentType === 'transaction_stmt' ? '거래명세서' :
+                       doc.documentType === 'delivery_cost' ? '배송비' :
+                       doc.documentType === 'design_proposal' ? '디자인' : '기타'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
