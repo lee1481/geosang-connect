@@ -4,7 +4,14 @@ import type { Env, AuthUser, Contact, Staff } from './types';
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.use('*', cors());
+app.use('*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 600,
+  credentials: true,
+}));
 
 // ========== 인증 API ==========
 app.post('/api/auth/login', async (c) => {
