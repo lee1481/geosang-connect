@@ -1,21 +1,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-// 인건비 청구 내역서 OCR
-export async function extractLaborClaimData(fileBase64: string, mimeType: string) {
+// 인건비 청구 내역서 OCR (영수증 OCR)
+export async function extractReceiptData(fileBase64: string, mimeType: string) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const prompt = `
-    다음은 인건비 청구 내역서입니다. 
-    작업일, 작업 장소, 작업 내용, 청구 금액을 추출하여 JSON으로 반환하세요.
+    다음은 영수증 또는 지출 내역서입니다.
+    식비, 주유비, 톨비, 기타 비용을 추출하여 JSON으로 반환하세요.
     
     추출할 정보:
-    - date: 작업일 (YYYY-MM-DD 형식)
-    - location: 작업 장소/현장명
-    - workDescription: 작업 내용 (구체적으로)
-    - hours: 작업 시간 (숫자, 없으면 8)
-    - amount: 청구 금액 (숫자만, 쉼표 제거)
+    - type: 비용 유형 (meal/fuel/toll/other)
+    - amount: 금액 (숫자만)
+    - description: 항목 설명
     
-    여러 건이 있으면 배열로 반환하세요.
+    여러 항목이 있으면 배열로 반환하세요.
   `;
 
   try {
@@ -32,52 +30,58 @@ export async function extractLaborClaimData(fileBase64: string, mimeType: string
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            claims: {
+            items: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  date: { type: Type.STRING },
-                  location: { type: Type.STRING },
-                  workDescription: { type: Type.STRING },
-                  hours: { type: Type.NUMBER },
+                  type: { type: Type.STRING },
                   amount: { type: Type.NUMBER },
+                  description: { type: Type.STRING }
                 },
-                required: ["date", "location", "workDescription", "amount"]
+                required: ["type", "amount"]
               }
             }
           },
-          required: ["claims"]
+          required: ["items"]
         }
       }
     });
 
     return JSON.parse(response.text);
   } catch (error) {
-    console.error("Gemini Labor Claim OCR Error:", error);
+    console.error("Gemini Receipt OCR Error:", error);
     throw error;
   }
 }
 
-// 문자 메시지 형식 파싱 (AI 기반)
+// 문자 메시지 형식 파싱 (AI 기반) - 다중 현장 지원
 export async function parseLaborClaimText(text: string) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const prompt = `
     다음은 외주 일당이 보낸 인건비 청구 문자입니다.
-    문자에서 작업일, 장소, 내용, 금액을 추출하여 JSON으로 반환하세요.
+    작업일, 현장 정보, 금액 세부내역을 추출하여 JSON으로 반환하세요.
     
     입력 예시:
-    "12/25 강남 현장 타일공사 150,000원"
-    "오늘 서초구 OO빌딩 도배작업 했어요. 12만원"
-    "25일 판교 전기작업 8시간 20만원"
+    "12/26
+    *현장1: 컴포즈커피 인천점 *시간: 3시간
+    *현장2: 스타벅스 서울점 *시간: 5시간
+    *기본일비: 120,000원
+    *연장비: 2시간 40,000원
+    *차대비: 20,000원
+    *식비: 15,000원"
     
     추출 정보:
     - date: 작업일 (YYYY-MM-DD, 올해 기준)
-    - location: 작업 장소
-    - workDescription: 작업 내용
-    - hours: 작업 시간 (없으면 8)
-    - amount: 금액 (숫자만)
+    - sites: 현장 목록 [{ siteName, hours }]
+    - basePay: 기본일비
+    - overtimeHours: 연장 시간
+    - overtimePay: 연장비
+    - transportFee: 차대비
+    - mealFee: 식비
+    - fuelFee: 주유비
+    - tollFee: 톨비
     
     입력 텍스트: ${text}
   `;
@@ -92,12 +96,26 @@ export async function parseLaborClaimText(text: string) {
           type: Type.OBJECT,
           properties: {
             date: { type: Type.STRING },
-            location: { type: Type.STRING },
-            workDescription: { type: Type.STRING },
-            hours: { type: Type.NUMBER },
-            amount: { type: Type.NUMBER },
+            sites: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  siteName: { type: Type.STRING },
+                  hours: { type: Type.NUMBER }
+                },
+                required: ["siteName", "hours"]
+              }
+            },
+            basePay: { type: Type.NUMBER },
+            overtimeHours: { type: Type.NUMBER },
+            overtimePay: { type: Type.NUMBER },
+            transportFee: { type: Type.NUMBER },
+            mealFee: { type: Type.NUMBER },
+            fuelFee: { type: Type.NUMBER },
+            tollFee: { type: Type.NUMBER }
           },
-          required: ["date", "location", "workDescription", "amount"]
+          required: ["date", "sites", "basePay"]
         }
       }
     });

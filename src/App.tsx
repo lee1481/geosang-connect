@@ -7,8 +7,8 @@ import {
   Layers, Filter, X, Pencil, Globe, ChevronDown, Check, Lock,
   Wallet, Tag, Loader2, Calendar, DollarSign, Download, BarChart3, TrendingUp, FileSpreadsheet, Star, Key, ShieldCheck, UserPlus, LogOut, User, Menu, Contact2
 } from 'lucide-react';
-import { CategoryType, Contact, Staff, ConstructionRecord, LaborClaim } from './types';
-import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData, extractLaborClaimData, parseLaborClaimText } from './geminiService';
+import { CategoryType, Contact, Staff, ConstructionRecord, LaborClaim, WorkSite, ClaimBreakdown } from './types';
+import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData, extractReceiptData, parseLaborClaimText } from './geminiService';
 import * as XLSX from 'xlsx';
 
 interface AuthUser {
@@ -418,9 +418,9 @@ const App: React.FC = () => {
       return filtered.sort((a: LaborClaim, b: LaborClaim) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [claims, period, selectedWorker]);
     
-    const totalAmount = filteredClaims.reduce((sum: number, c: LaborClaim) => sum + c.amount, 0);
-    const pendingAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'pending').reduce((sum: number, c: LaborClaim) => sum + c.amount, 0);
-    const paidAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'paid').reduce((sum: number, c: LaborClaim) => sum + c.amount, 0);
+    const totalAmount = filteredClaims.reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
+    const pendingAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'pending').reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
+    const paidAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'paid').reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
     
     return (
       <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth bg-gradient-to-br from-slate-50 to-blue-50">
@@ -500,9 +500,9 @@ const App: React.FC = () => {
           ) : (
             filteredClaims.map((claim: LaborClaim) => (
               <div key={claim.id} className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-all">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <h3 className="text-lg font-black text-slate-900">{claim.workerName}</h3>
                       <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase ${
                         claim.status === 'pending' ? 'bg-amber-100 text-amber-700' :
@@ -510,22 +510,76 @@ const App: React.FC = () => {
                         'bg-emerald-100 text-emerald-700'
                       }`}>{claim.status === 'pending' ? '대기' : claim.status === 'approved' ? '승인' : '지급완료'}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                      <div><span className="font-bold">작업일:</span> {claim.date}</div>
-                      <div><span className="font-bold">장소:</span> {claim.location}</div>
-                      <div className="col-span-2"><span className="font-bold">내용:</span> {claim.workDescription}</div>
+                    <div className="text-xs text-slate-600 mb-3">
+                      <span className="font-bold">작업일:</span> {claim.date}
+                    </div>
+                    
+                    {/* 현장 목록 */}
+                    <div className="space-y-1.5 mb-3">
+                      {claim.sites.map((site, idx) => (
+                        <div key={site.id} className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg">
+                          <span className="text-xs font-black text-blue-600">현장{idx + 1}:</span>
+                          <span className="text-xs font-bold text-slate-900">{site.siteName}</span>
+                          <span className="text-xs text-slate-500">• {site.hours}시간</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* 금액 세부내역 */}
+                    <div className="bg-slate-50 rounded-lg p-3 space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-600">기본일비</span>
+                        <span className="font-bold text-slate-900">{claim.breakdown.basePay.toLocaleString()}원</span>
+                      </div>
+                      {claim.breakdown.overtimePay > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-600">연장비 ({claim.breakdown.overtimeHours}시간)</span>
+                          <span className="font-bold text-slate-900">{claim.breakdown.overtimePay.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      {claim.breakdown.transportFee > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-600">차대비</span>
+                          <span className="font-bold text-slate-900">{claim.breakdown.transportFee.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      {claim.breakdown.mealFee > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-600">식비</span>
+                          <span className="font-bold text-slate-900">{claim.breakdown.mealFee.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      {claim.breakdown.fuelFee > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-600">주유비</span>
+                          <span className="font-bold text-slate-900">{claim.breakdown.fuelFee.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      {claim.breakdown.tollFee > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-600">톨비</span>
+                          <span className="font-bold text-slate-900">{claim.breakdown.tollFee.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      {claim.breakdown.otherFee > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-600">{claim.breakdown.otherFeeDesc || '기타'}</span>
+                          <span className="font-bold text-slate-900">{claim.breakdown.otherFee.toLocaleString()}원</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-black text-blue-600">{claim.amount.toLocaleString()}원</p>
-                    {claim.hours && <p className="text-xs text-slate-500">{claim.hours}시간</p>}
+                    <p className="text-xs text-slate-500 mb-1">총 청구금액</p>
+                    <p className="text-2xl font-black text-blue-600">{claim.totalAmount.toLocaleString()}원</p>
+                    <p className="text-xs text-slate-500 mt-1">{claim.sites.reduce((sum, s) => sum + s.hours, 0)}시간</p>
                   </div>
                 </div>
                 
-                <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
-                  {claim.receiptImage && (
+                <div className="flex gap-2 pt-4 border-t border-slate-100">
+                  {claim.receiptImages && claim.receiptImages.length > 0 && (
                     <button className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200">
-                      📸 내역서
+                      📸 영수증 {claim.receiptImages.length}장
                     </button>
                   )}
                   {claim.status === 'pending' && (
@@ -1312,20 +1366,29 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
       workerName: '',
       workerPhone: '',
       date: new Date().toISOString().split('T')[0],
-      location: '',
-      workDescription: '',
-      hours: 8,
-      amount: 0,
+      sites: [{ id: 'site-1', siteName: '', hours: 0 }],
+      breakdown: {
+        basePay: 0,
+        overtimeHours: 0,
+        overtimePay: 0,
+        transportFee: 0,
+        mealFee: 0,
+        fuelFee: 0,
+        tollFee: 0,
+        otherFee: 0,
+        otherFeeDesc: ''
+      },
+      totalAmount: 0,
+      receiptImages: [],
       status: 'pending',
       createdAt: new Date().toISOString(),
       rawText: ''
     }
   );
   
-  const [inputMode, setInputMode] = useState<'form' | 'text' | 'image'>('text');
-  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [inputMode, setInputMode] = useState<'form' | 'text'>('text');
   const [isTextParsing, setIsTextParsing] = useState(false);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
   
   const handleWorkerChange = (workerId: string) => {
     const worker = outsourceWorkers.find((w: Contact) => w.staffList[0]?.id === workerId);
@@ -1339,49 +1402,79 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
     }
   };
   
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleAddSite = () => {
+    setFormData({
+      ...formData,
+      sites: [...(formData.sites || []), { id: 'site-' + Date.now(), siteName: '', hours: 0 }]
+    });
+  };
+  
+  const handleRemoveSite = (index: number) => {
+    if ((formData.sites?.length || 0) <= 1) return;
+    setFormData({
+      ...formData,
+      sites: formData.sites?.filter((_, i) => i !== index)
+    });
+  };
+  
+  const handleSiteChange = (index: number, field: 'siteName' | 'hours', value: string | number) => {
+    const newSites = [...(formData.sites || [])];
+    newSites[index] = { ...newSites[index], [field]: value };
+    setFormData({ ...formData, sites: newSites });
+  };
+  
+  const handleBreakdownChange = (field: keyof ClaimBreakdown, value: number | string) => {
+    setFormData({
+      ...formData,
+      breakdown: { ...formData.breakdown!, [field]: value }
+    });
+  };
+  
+  const calculateTotal = () => {
+    const b = formData.breakdown!;
+    return b.basePay + b.overtimePay + b.transportFee + b.mealFee + b.fuelFee + b.tollFee + b.otherFee;
+  };
+  
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     
-    setIsOcrLoading(true);
-    try {
+    for (const file of files) {
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = (event.target?.result as string).split(',')[1];
         try {
-          const result = await extractLaborClaimData(base64, file.type);
-          if (result.claims && result.claims.length > 0) {
-            const claim = result.claims[0];
+          const result = await extractReceiptData(base64, file.type);
+          if (result.items && result.items.length > 0) {
+            const breakdown = { ...formData.breakdown! };
+            result.items.forEach((item: any) => {
+              if (item.type === 'meal') breakdown.mealFee += item.amount;
+              else if (item.type === 'fuel') breakdown.fuelFee += item.amount;
+              else if (item.type === 'toll') breakdown.tollFee += item.amount;
+              else breakdown.otherFee += item.amount;
+            });
             setFormData({
               ...formData,
-              date: claim.date,
-              location: claim.location,
-              workDescription: claim.workDescription,
-              hours: claim.hours || 8,
-              amount: claim.amount,
-              receiptImage: {
-                data: base64,
-                name: file.name,
-                mimeType: file.type
-              }
+              breakdown,
+              receiptImages: [...(formData.receiptImages || []), { data: base64, name: file.name, mimeType: file.type }]
             });
-            alert('✅ 내역서 분석 완료!');
+            alert('✅ 영수증 분석 완료!');
           }
         } catch (error) {
-          alert('❌ OCR 실패: ' + error);
+          // OCR 실패해도 영수증 이미지는 저장
+          setFormData({
+            ...formData,
+            receiptImages: [...(formData.receiptImages || []), { data: base64, name: file.name, mimeType: file.type }]
+          });
         }
-        setIsOcrLoading(false);
       };
       reader.readAsDataURL(file);
-    } catch (error) {
-      alert('파일 읽기 실패');
-      setIsOcrLoading(false);
     }
   };
   
   const handleTextParse = async () => {
     if (!formData.rawText?.trim()) {
-      alert('문자 내용을 입력하세요');
+      alert('청구 내용을 입력하세요');
       return;
     }
     
@@ -1391,10 +1484,18 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
       setFormData({
         ...formData,
         date: result.date,
-        location: result.location,
-        workDescription: result.workDescription,
-        hours: result.hours || 8,
-        amount: result.amount
+        sites: result.sites,
+        breakdown: {
+          basePay: result.basePay || 0,
+          overtimeHours: result.overtimeHours || 0,
+          overtimePay: result.overtimePay || 0,
+          transportFee: result.transportFee || 0,
+          mealFee: result.mealFee || 0,
+          fuelFee: result.fuelFee || 0,
+          tollFee: result.tollFee || 0,
+          otherFee: 0,
+          otherFeeDesc: ''
+        }
       });
       alert('✅ 문자 분석 완료!');
       setInputMode('form');
@@ -1406,16 +1507,21 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.workerId || !formData.date || !formData.location || !formData.amount) {
+    if (!formData.workerId || !formData.date || !formData.sites?.length) {
       alert('필수 항목을 입력하세요');
       return;
     }
-    onSubmit(formData as LaborClaim);
+    
+    const totalAmount = calculateTotal();
+    onSubmit({
+      ...formData,
+      totalAmount
+    } as LaborClaim);
   };
   
   return (
     <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-3xl w-full my-8 shadow-2xl">
+      <div className="bg-white rounded-3xl max-w-4xl w-full my-8 shadow-2xl">
         <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-3xl flex justify-between items-center z-10">
           <h2 className="text-2xl font-black flex items-center gap-2">
             <DollarSign size={28} /> {initialData ? '청구 수정' : '💬 간편 청구 등록'}
@@ -1425,7 +1531,7 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
           {/* 입력 모드 선택 */}
           <div className="flex gap-2">
             <button
@@ -1434,13 +1540,6 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
               className={`flex-1 p-4 rounded-xl font-bold transition-all ${inputMode === 'text' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
             >
               💬 문자 입력
-            </button>
-            <button
-              type="button"
-              onClick={() => setInputMode('image')}
-              className={`flex-1 p-4 rounded-xl font-bold transition-all ${inputMode === 'image' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
-            >
-              📸 사진 업로드
             </button>
             <button
               type="button"
@@ -1460,13 +1559,13 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
                 </div>
                 <div className="flex-1">
                   <h3 className="font-black text-lg mb-2">💬 카톡 스타일 간편 입력</h3>
-                  <p className="text-xs text-slate-600 mb-4">일당들이 보낸 문자 그대로 복사해서 붙여넣으세요. AI가 자동으로 분석합니다!</p>
+                  <p className="text-xs text-slate-600 mb-4">일당이 보낸 문자 그대로 붙여넣으세요!</p>
                   <textarea
                     value={formData.rawText || ''}
                     onChange={(e) => setFormData({ ...formData, rawText: e.target.value })}
-                    placeholder="예시:&#10;12/26 강남 현장 타일공사 150,000원&#10;오늘 서초구 빌딩 도배작업 12만원&#10;26일 판교 전기작업 8시간 20만원"
+                    placeholder={"예시:\n12/26\n*현장1: 컴포즈커피 인천점 *시간: 3시간\n*현장2: 스타벅스 서울점 *시간: 5시간\n*기본일비: 120,000원\n*연장비: 2시간 40,000원\n*차대비: 20,000원\n*식비: 15,000원"}
                     className="w-full p-4 border-2 border-slate-200 rounded-xl text-sm font-medium resize-none focus:border-blue-500 outline-none"
-                    rows={6}
+                    rows={8}
                   />
                   <button
                     type="button"
@@ -1481,36 +1580,10 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
             </div>
           )}
           
-          {/* 사진 업로드 모드 */}
-          {inputMode === 'image' && (
-            <div className="space-y-4 bg-slate-50 p-6 rounded-2xl">
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Upload size={24} className="text-emerald-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-black text-lg mb-2">📸 내역서 사진 업로드</h3>
-                  <p className="text-xs text-slate-600 mb-4">인건비 내역서 사진을 업로드하면 OCR로 자동 분석합니다</p>
-                  <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                  <button
-                    type="button"
-                    onClick={() => imageInputRef.current?.click()}
-                    disabled={isOcrLoading}
-                    className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isOcrLoading ? <Loader2 className="animate-spin" size={20} /> : <><Upload size={20} /> 사진 선택</>}
-                  </button>
-                  {formData.receiptImage && (
-                    <p className="mt-2 text-xs text-emerald-600 font-bold">✓ {formData.receiptImage.name} 업로드됨</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          
           {/* 폼 입력 모드 */}
           {inputMode === 'form' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* 일당 선택 */}
               <div>
                 <label className="block text-xs font-black text-slate-600 mb-2">일당 선택 *</label>
                 <select
@@ -1528,68 +1601,200 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
                 </select>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-black text-slate-600 mb-2">작업일 *</label>
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-slate-600 mb-2">작업 시간</label>
-                  <input
-                    type="number"
-                    value={formData.hours || 8}
-                    onChange={(e) => setFormData({ ...formData, hours: parseFloat(e.target.value) })}
-                    className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
-                    placeholder="8"
-                  />
-                </div>
-              </div>
-              
+              {/* 작업일 */}
               <div>
-                <label className="block text-xs font-black text-slate-600 mb-2">작업 장소 *</label>
+                <label className="block text-xs font-black text-slate-600 mb-2">작업일 *</label>
                 <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
-                  placeholder="강남구 OO빌딩"
                   required
                 />
               </div>
               
+              {/* 작업 현장 */}
               <div>
-                <label className="block text-xs font-black text-slate-600 mb-2">작업 내용 *</label>
-                <textarea
-                  value={formData.workDescription}
-                  onChange={(e) => setFormData({ ...formData, workDescription: e.target.value })}
-                  className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none resize-none"
-                  placeholder="타일 공사, 도배 작업 등"
-                  rows={3}
-                  required
-                />
+                <div className="flex justify-between items-center mb-3">
+                  <label className="text-xs font-black text-slate-600">작업 현장 *</label>
+                  <button
+                    type="button"
+                    onClick={handleAddSite}
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
+                  >
+                    <Plus size={14} /> 현장 추가
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {formData.sites?.map((site, idx) => (
+                    <div key={site.id} className="flex gap-2 items-center bg-slate-50 p-3 rounded-xl">
+                      <span className="text-xs font-black text-blue-600 w-16">현장{idx + 1}:</span>
+                      <input
+                        type="text"
+                        value={site.siteName}
+                        onChange={(e) => handleSiteChange(idx, 'siteName', e.target.value)}
+                        placeholder="컴포즈커피 인천점"
+                        className="flex-1 p-2 border-2 border-slate-200 rounded-lg font-bold text-sm focus:border-blue-500 outline-none"
+                        required
+                      />
+                      <input
+                        type="number"
+                        value={site.hours || ''}
+                        onChange={(e) => handleSiteChange(idx, 'hours', parseFloat(e.target.value) || 0)}
+                        placeholder="3"
+                        className="w-20 p-2 border-2 border-slate-200 rounded-lg font-bold text-sm text-center focus:border-blue-500 outline-none"
+                        required
+                      />
+                      <span className="text-xs text-slate-600">시간</span>
+                      {(formData.sites?.length || 0) > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSite(idx)}
+                          className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
               
-              <div>
-                <label className="block text-xs font-black text-slate-600 mb-2">청구 금액 *</label>
-                <input
-                  type="number"
-                  value={formData.amount || ''}
-                  onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                  className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold text-2xl focus:border-blue-500 outline-none"
-                  placeholder="150000"
-                  required
-                />
-                {formData.amount > 0 && (
-                  <p className="mt-2 text-sm font-bold text-blue-600">{formData.amount.toLocaleString()}원</p>
-                )}
+              {/* 청구 금액 세부내역 */}
+              <div className="bg-blue-50 p-6 rounded-2xl space-y-4">
+                <h3 className="text-lg font-black text-blue-900 mb-4">💰 청구 금액 세부내역</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-600 mb-2">기본일비 *</label>
+                    <input
+                      type="number"
+                      value={formData.breakdown?.basePay || ''}
+                      onChange={(e) => handleBreakdownChange('basePay', parseFloat(e.target.value) || 0)}
+                      className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                      placeholder="120000"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-600 mb-2">차대비</label>
+                    <input
+                      type="number"
+                      value={formData.breakdown?.transportFee || ''}
+                      onChange={(e) => handleBreakdownChange('transportFee', parseFloat(e.target.value) || 0)}
+                      className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                      placeholder="20000"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-600 mb-2">연장 시간</label>
+                    <input
+                      type="number"
+                      value={formData.breakdown?.overtimeHours || ''}
+                      onChange={(e) => handleBreakdownChange('overtimeHours', parseFloat(e.target.value) || 0)}
+                      className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                      placeholder="2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-600 mb-2">연장비</label>
+                    <input
+                      type="number"
+                      value={formData.breakdown?.overtimePay || ''}
+                      onChange={(e) => handleBreakdownChange('overtimePay', parseFloat(e.target.value) || 0)}
+                      className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                      placeholder="40000"
+                    />
+                  </div>
+                </div>
+                
+                {/* 영수증 첨부 */}
+                <div className="border-t-2 border-blue-100 pt-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="text-xs font-black text-slate-600">식비/주유비/톨비 (영수증 첨부 가능)</label>
+                    <button
+                      type="button"
+                      onClick={() => receiptInputRef.current?.click()}
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 flex items-center gap-1"
+                    >
+                      <Upload size={14} /> 영수증 OCR
+                    </button>
+                  </div>
+                  <input type="file" ref={receiptInputRef} className="hidden" accept="image/*" multiple onChange={handleReceiptUpload} />
+                  
+                  {formData.receiptImages && formData.receiptImages.length > 0 && (
+                    <div className="mb-3 text-xs text-emerald-600 font-bold">
+                      ✓ 영수증 {formData.receiptImages.length}장 첨부됨
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">식비</label>
+                      <input
+                        type="number"
+                        value={formData.breakdown?.mealFee || ''}
+                        onChange={(e) => handleBreakdownChange('mealFee', parseFloat(e.target.value) || 0)}
+                        className="w-full p-2 border-2 border-slate-200 rounded-lg font-bold text-sm focus:border-blue-500 outline-none"
+                        placeholder="15000"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">주유비</label>
+                      <input
+                        type="number"
+                        value={formData.breakdown?.fuelFee || ''}
+                        onChange={(e) => handleBreakdownChange('fuelFee', parseFloat(e.target.value) || 0)}
+                        className="w-full p-2 border-2 border-slate-200 rounded-lg font-bold text-sm focus:border-blue-500 outline-none"
+                        placeholder="30000"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">톨비</label>
+                      <input
+                        type="number"
+                        value={formData.breakdown?.tollFee || ''}
+                        onChange={(e) => handleBreakdownChange('tollFee', parseFloat(e.target.value) || 0)}
+                        className="w-full p-2 border-2 border-slate-200 rounded-lg font-bold text-sm focus:border-blue-500 outline-none"
+                        placeholder="5000"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-black text-slate-600 mb-2">기타 비용</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.breakdown?.otherFeeDesc || ''}
+                      onChange={(e) => handleBreakdownChange('otherFeeDesc', e.target.value)}
+                      placeholder="항목명"
+                      className="flex-1 p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={formData.breakdown?.otherFee || ''}
+                      onChange={(e) => handleBreakdownChange('otherFee', parseFloat(e.target.value) || 0)}
+                      placeholder="금액"
+                      className="w-32 p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+                
+                {/* 총 청구금액 */}
+                <div className="bg-white rounded-xl p-4 border-2 border-blue-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-slate-600">총 청구금액</span>
+                    <span className="text-2xl font-black text-blue-600">{calculateTotal().toLocaleString()}원</span>
+                  </div>
+                </div>
               </div>
               
+              {/* 메모 */}
               <div>
                 <label className="block text-xs font-black text-slate-600 mb-2">메모</label>
                 <textarea
