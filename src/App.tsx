@@ -1041,11 +1041,17 @@ const App: React.FC = () => {
                   : storeName.trim();
 
                 // 🔧 프로젝트 찾기 또는 생성 (임시 맵에서)
-                let project = projectsMap.get(Array.from(projectsMap.values()).find(p => p.storeName === fullStoreName)?.id || '');
+                let project: Project | undefined;
+                for (const p of projectsMap.values()) {
+                  if (p.storeName === fullStoreName) {
+                    project = p;
+                    break;
+                  }
+                }
                 
                 if (!project) {
                   // 새 프로젝트 생성
-                  const newProjectId = `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                  const newProjectId = `proj-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`;
                   project = {
                     id: newProjectId,
                     storeName: fullStoreName,
@@ -1061,11 +1067,14 @@ const App: React.FC = () => {
                     updatedAt: new Date().toISOString()
                   };
                   projectsMap.set(newProjectId, project);
+                  console.log(`🆕 새 프로젝트 생성: ${fullStoreName} (ID: ${newProjectId})`);
+                } else {
+                  console.log(`✅ 기존 프로젝트 발견: ${fullStoreName} (ID: ${project.id})`);
                 }
 
                 // 문서 추가
                 const document: ProjectDocument = {
-                  id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  id: `doc-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
                   projectId: project.id,
                   storeName: fullStoreName,
                   documentType,
@@ -1083,6 +1092,7 @@ const App: React.FC = () => {
                 };
 
                 project.documents.push(document);
+                console.log(`📄 문서 추가 완료: ${file.name} → ${fullStoreName} (문서 타입: ${documentType})`);
 
                 // 금액 자동 반영
                 if (documentType === 'quotation' && extracted.amount) {
@@ -1114,7 +1124,13 @@ const App: React.FC = () => {
                 successCount++;
                 resolve(true);
               } catch (err) {
-                console.error('File processing error:', err);
+                console.error(`❌ 파일 처리 실패: ${file.name}`, err);
+                console.error('에러 상세:', {
+                  fileName: file.name,
+                  fileType: file.type,
+                  fileSize: file.size,
+                  error: err
+                });
                 resolve(false);
               }
             };
@@ -1137,8 +1153,8 @@ const App: React.FC = () => {
           fileInputRef.current.value = '';
         }
       } catch (error) {
-        console.error('Upload error:', error);
-        alert('업로드 중 오류가 발생했습니다.');
+        console.error('❌ 전체 업로드 프로세스 실패:', error);
+        alert(`업로드 중 오류가 발생했습니다.\n\n에러: ${error}\n\n콘솔(F12)을 확인해주세요.`);
       } finally {
         setUploading(false);
       }
