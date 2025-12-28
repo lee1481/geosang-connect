@@ -564,13 +564,67 @@ const App: React.FC = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-6">
           {/* 필터 & 액션 */}
           <div className="flex flex-wrap gap-3 items-center justify-between">
-            <div className="flex flex-wrap gap-2">
-              <select value={selectedWorker} onChange={(e) => setSelectedWorker(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold">
-                <option value="all">전체 일당</option>
-                {outsourceWorkers.map((w: Contact) => (
-                  <option key={w.id} value={w.staffList[0]?.id}>{w.staffList[0]?.name}</option>
-                ))}
-              </select>
+            <div className="flex-1 max-w-md">
+              <Select
+                options={[
+                  { value: 'all', label: '전체 일당' },
+                  ...outsourceWorkers.map((w: Contact) => ({
+                    value: w.staffList[0]?.id,
+                    label: `${w.staffList[0]?.name}${w.staffList[0]?.phone ? ` (${w.staffList[0].phone})` : ''}`
+                  }))
+                ]}
+                value={
+                  selectedWorker === 'all'
+                    ? { value: 'all', label: '전체 일당' }
+                    : outsourceWorkers
+                        .map((w: Contact) => ({
+                          value: w.staffList[0]?.id,
+                          label: `${w.staffList[0]?.name}${w.staffList[0]?.phone ? ` (${w.staffList[0].phone})` : ''}`
+                        }))
+                        .find((opt: any) => opt.value === selectedWorker) || null
+                }
+                onChange={(selected: any) => {
+                  setSelectedWorker(selected?.value || 'all');
+                }}
+                placeholder="일당 이름 또는 전화번호로 검색..."
+                isSearchable
+                isClearable
+                noOptionsMessage={() => "일당을 찾을 수 없습니다"}
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    padding: '2px',
+                    borderRadius: '12px',
+                    borderWidth: '2px',
+                    borderColor: '#e2e8f0',
+                    fontWeight: 'bold',
+                    minHeight: '42px',
+                    '&:hover': {
+                      borderColor: '#3b82f6'
+                    }
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                    zIndex: 100
+                  }),
+                  option: (base, state) => ({
+                    ...base,
+                    backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#eff6ff' : 'white',
+                    color: state.isSelected ? 'white' : '#1e293b',
+                    fontWeight: state.isSelected ? 'bold' : 'normal',
+                    padding: '12px 16px',
+                    cursor: 'pointer'
+                  }),
+                  placeholder: (base) => ({
+                    ...base,
+                    color: '#94a3b8',
+                    fontSize: '14px'
+                  })
+                }}
+              />
             </div>
             
             <div className="flex gap-2">
@@ -604,9 +658,6 @@ const App: React.FC = () => {
                 className="bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-emerald-700"
               >
                 <Download size={18} /> 청구서 다운로드
-              </button>
-              <button onClick={onAddClaim} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-blue-700">
-                <Plus size={18} /> 청구 등록
               </button>
             </div>
           </div>
