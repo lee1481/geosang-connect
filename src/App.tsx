@@ -2370,14 +2370,20 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
   const receiptInputRef = useRef<HTMLInputElement>(null);
   
   const handleWorkerChange = (workerId: string) => {
+    console.log('handleWorkerChange called with:', workerId);
     const worker = outsourceWorkers.find((w: Contact) => w.staffList[0]?.id === workerId);
+    console.log('Found worker:', worker);
     if (worker && worker.staffList[0]) {
-      setFormData({
+      const newFormData = {
         ...formData,
         workerId,
         workerName: worker.staffList[0].name,
         workerPhone: worker.staffList[0].phone
-      });
+      };
+      console.log('Setting formData to:', newFormData);
+      setFormData(newFormData);
+    } else {
+      console.error('Worker not found for id:', workerId);
     }
   };
   
@@ -2486,9 +2492,32 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.workerId || !formData.date || !formData.sites?.length) {
-      alert('필수 항목을 입력하세요');
+    
+    // 필수 항목 체크
+    if (!formData.workerId) {
+      alert('일당을 선택하세요');
       return;
+    }
+    if (!formData.date) {
+      alert('작업일을 입력하세요');
+      return;
+    }
+    if (!formData.sites || formData.sites.length === 0) {
+      alert('작업 현장을 최소 1개 이상 입력하세요');
+      return;
+    }
+    
+    // 현장명과 시간이 모두 입력되었는지 체크
+    for (let i = 0; i < formData.sites.length; i++) {
+      const site = formData.sites[i];
+      if (!site.siteName || !site.siteName.trim()) {
+        alert(`${i + 1}번째 현장명을 입력하세요`);
+        return;
+      }
+      if (!site.hours || site.hours <= 0) {
+        alert(`${i + 1}번째 현장의 작업시간을 입력하세요`);
+        return;
+      }
     }
     
     const totalAmount = calculateTotal();
@@ -2596,6 +2625,14 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
                   onChange={(selected: any) => {
                     if (selected) {
                       handleWorkerChange(selected.value);
+                    } else {
+                      // Clear selection
+                      setFormData({
+                        ...formData,
+                        workerId: '',
+                        workerName: '',
+                        workerPhone: ''
+                      });
                     }
                   }}
                   placeholder="이름 또는 전화번호로 검색..."
