@@ -27,6 +27,51 @@ const INITIAL_AUTH_USERS: AuthUser[] = [
   { id: 'admin', name: '마스터 관리자', username: 'admin', password: 'geosang777' }
 ];
 
+// 🔧 지점명 정규화 함수
+const normalizeStoreName = (storeName: string): string => {
+  // 1. 공백 제거 및 소문자 변환
+  let normalized = storeName.trim().toLowerCase();
+  
+  // 2. 지역명 추출 (예: 부산, 서울, 인천 등)
+  const regionPattern = /(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)/;
+  const regionMatch = normalized.match(regionPattern);
+  const region = regionMatch ? regionMatch[1] : '';
+  
+  // 3. 점포명 추출 (예: 센텀, 강남, 역삼 등)
+  let shopName = normalized
+    .replace(regionPattern, '') // 지역명 제거
+    .replace(/점$/, '') // 끝의 '점' 제거
+    .replace(/지점$/, '') // 끝의 '지점' 제거
+    .replace(/매장$/, '') // 끝의 '매장' 제거
+    .replace(/점포$/, '') // 끝의 '점포' 제거
+    .replace(/\s+/g, '') // 모든 공백 제거
+    .trim();
+  
+  // 4. 정규화된 이름 생성
+  if (region && shopName) {
+    return `${region}${shopName}점`;
+  } else if (shopName) {
+    return `${shopName}점`;
+  } else {
+    return storeName.replace(/\s+/g, '_'); // 실패 시 공백을 _로 변경
+  }
+};
+
+// 🔧 문서 타입을 폴더명으로 매핑
+const getDocumentFolderName = (docType: string): string => {
+  const mapping: Record<string, string> = {
+    'quotation': '견적서',
+    'purchase_order': '발주서',
+    'transaction_stmt': '거래명세서',
+    'delivery_cost': '영수증',
+    'design_proposal': '시안',
+    'tax_invoice': '세금계산서',
+    'labor_claim': '인건비',
+    'other': '기타'
+  };
+  return mapping[docType] || '기타';
+};
+
 const App: React.FC = () => {
   const [authorizedUsers, setAuthorizedUsers] = useState<AuthUser[]>(() => {
     const saved = localStorage.getItem('geosang_auth_users_v2');
@@ -1186,17 +1231,23 @@ const App: React.FC = () => {
                 }
 
                 // AI 드라이브에 파일 저장
+                const normalizedStoreName = normalizeStoreName(fullStoreName);
+                const documentFolder = getDocumentFolderName(documentType);
                 const timeStamp = new Date().toISOString().split('T')[0];
                 const fileNameWithDate = `${timeStamp}_${file.name}`;
                 let filePath = '';
                 let savedToAiDrive = false;
+                
+                console.log(`📁 저장 경로: /거상워크플로우/${normalizedStoreName}/${documentFolder}/`);
+                console.log(`📄 파일명: ${fileNameWithDate}`);
                 
                 try {
                   const uploadResponse = await fetch('/api/files/upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                      storeName: fullStoreName,
+                      storeName: normalizedStoreName,
+                      documentType: documentFolder,
                       fileName: fileNameWithDate,
                       fileData: base64Data,
                       mimeType: file.type

@@ -312,21 +312,23 @@ app.put('/api/settings/rename', async (c) => {
 // ========== 파일 업로드 API ==========
 app.post('/api/files/upload', async (c) => {
   try {
-    const { storeName, fileName, fileData, mimeType } = await c.req.json();
+    const { storeName, documentType, fileName, fileData, mimeType } = await c.req.json();
     
     if (!storeName || !fileName || !fileData) {
       return c.json({ error: '필수 파라미터가 누락되었습니다.' }, 400);
     }
 
-    // AI 드라이브 경로 생성: /mnt/aidrive/거상워크플로우/{지점명}/
+    // AI 드라이브 경로 생성: /mnt/aidrive/거상워크플로우/{정규화된지점명}/{문서타입}/
     const sanitizedStoreName = storeName.replace(/[\/\\:*?"<>|]/g, '_');
-    const dirPath = `/mnt/aidrive/거상워크플로우/${sanitizedStoreName}`;
+    const sanitizedDocType = (documentType || '기타').replace(/[\/\\:*?"<>|]/g, '_');
+    const dirPath = `/mnt/aidrive/거상워크플로우/${sanitizedStoreName}/${sanitizedDocType}`;
     const filePath = `${dirPath}/${fileName}`;
 
     // 디렉토리 생성 (없으면)
     const fs = await import('fs/promises');
     try {
       await fs.mkdir(dirPath, { recursive: true });
+      console.log(`📁 디렉토리 생성: ${dirPath}`);
     } catch (mkdirError: any) {
       console.error('디렉토리 생성 실패:', mkdirError);
     }
@@ -341,7 +343,7 @@ app.post('/api/files/upload', async (c) => {
     return c.json({ 
       success: true, 
       filePath,
-      aiDrivePath: `/거상워크플로우/${sanitizedStoreName}/${fileName}`
+      aiDrivePath: `/거상워크플로우/${sanitizedStoreName}/${sanitizedDocType}/${fileName}`
     });
   } catch (error: any) {
     console.error('파일 업로드 에러:', error);
