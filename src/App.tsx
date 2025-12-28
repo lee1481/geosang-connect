@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import Select from 'react-select';
 import { 
   Users, Briefcase, ShoppingBag, Store, Home, 
   Settings, Search, Plus, Trash2, Phone, Mail, 
@@ -2584,22 +2585,65 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
           {/* 폼 입력 모드 */}
           {inputMode === 'form' && (
             <div className="space-y-6">
-              {/* 일당 선택 */}
+              {/* 일당 선택 - React Select */}
               <div>
                 <label className="block text-xs font-black text-slate-600 mb-2">일당 선택 *</label>
-                <select
-                  value={formData.workerId}
-                  onChange={(e) => handleWorkerChange(e.target.value)}
-                  className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
-                  required
-                >
-                  <option value="">선택하세요</option>
-                  {outsourceWorkers.map((w: Contact) => (
-                    <option key={w.staffList[0]?.id} value={w.staffList[0]?.id}>
-                      {w.staffList[0]?.name} {w.staffList[0]?.phone && `(${w.staffList[0].phone})`}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  options={outsourceWorkers.map((w: Contact) => ({
+                    value: w.staffList[0]?.id,
+                    label: `${w.staffList[0]?.name} ${w.staffList[0]?.phone ? `(${w.staffList[0].phone})` : ''}`,
+                    name: w.staffList[0]?.name,
+                    phone: w.staffList[0]?.phone
+                  }))}
+                  value={
+                    formData.workerId 
+                      ? outsourceWorkers
+                          .map((w: Contact) => ({
+                            value: w.staffList[0]?.id,
+                            label: `${w.staffList[0]?.name} ${w.staffList[0]?.phone ? `(${w.staffList[0].phone})` : ''}`,
+                            name: w.staffList[0]?.name,
+                            phone: w.staffList[0]?.phone
+                          }))
+                          .find((opt: any) => opt.value === formData.workerId)
+                      : null
+                  }
+                  onChange={(selected: any) => {
+                    if (selected) {
+                      handleWorkerChange(selected.value);
+                    }
+                  }}
+                  placeholder="이름 또는 전화번호로 검색..."
+                  isSearchable
+                  isClearable
+                  noOptionsMessage={() => "일당을 찾을 수 없습니다"}
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      padding: '6px',
+                      borderRadius: '12px',
+                      borderWidth: '2px',
+                      borderColor: '#e2e8f0',
+                      fontWeight: 'bold',
+                      '&:hover': {
+                        borderColor: '#3b82f6'
+                      }
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#eff6ff' : 'white',
+                      color: state.isSelected ? 'white' : '#1e293b',
+                      fontWeight: state.isSelected ? 'bold' : 'normal',
+                      padding: '12px 16px',
+                      cursor: 'pointer'
+                    })
+                  }}
+                />
               </div>
               
               {/* 작업일 */}
