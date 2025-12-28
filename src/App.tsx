@@ -510,8 +510,36 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        {/* 필터 & 액션 */}
+        {/* 검색 & 필터 */}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-6">
+          {/* 검색창 */}
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+              <input
+                type="text"
+                placeholder="이름, 전화번호, 현장명으로 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-10 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none text-sm font-medium transition-all"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={20} />
+                </button>
+              )}
+            </div>
+            {searchTerm && (
+              <p className="text-xs text-blue-600 font-bold mt-2">
+                🔍 '{searchTerm}' 검색 결과: {filteredClaims.length}건
+              </p>
+            )}
+          </div>
+
+          {/* 필터 & 액션 */}
           <div className="flex flex-wrap gap-3 items-center justify-between">
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setPeriod('week')} className={`px-4 py-2 rounded-lg font-bold text-xs ${period === 'week' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>주간</button>
