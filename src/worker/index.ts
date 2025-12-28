@@ -310,6 +310,8 @@ app.put('/api/settings/rename', async (c) => {
 });
 
 // ========== 파일 업로드 API ==========
+// 🔴 Cloudflare Workers는 파일 시스템을 지원하지 않습니다
+// 📝 메타데이터만 저장하고, 파일은 프론트엔드에서 localStorage/IndexedDB에 저장합니다
 app.post('/api/files/upload', async (c) => {
   try {
     const { storeName, documentType, fileName, fileData, mimeType } = await c.req.json();
@@ -318,32 +320,26 @@ app.post('/api/files/upload', async (c) => {
       return c.json({ error: '필수 파라미터가 누락되었습니다.' }, 400);
     }
 
-    // AI 드라이브 경로 생성: /mnt/aidrive/거상워크플로우/{정규화된지점명}/{문서타입}/
+    // 정규화된 경로 생성
     const sanitizedStoreName = storeName.replace(/[\/\\:*?"<>|]/g, '_');
     const sanitizedDocType = (documentType || '기타').replace(/[\/\\:*?"<>|]/g, '_');
-    const dirPath = `/mnt/aidrive/거상워크플로우/${sanitizedStoreName}/${sanitizedDocType}`;
-    const filePath = `${dirPath}/${fileName}`;
+    const aiDrivePath = `/거상워크플로우/${sanitizedStoreName}/${sanitizedDocType}/${fileName}`;
 
-    // 디렉토리 생성 (없으면)
-    const fs = await import('fs/promises');
-    try {
-      await fs.mkdir(dirPath, { recursive: true });
-      console.log(`📁 디렉토리 생성: ${dirPath}`);
-    } catch (mkdirError: any) {
-      console.error('디렉토리 생성 실패:', mkdirError);
-    }
+    console.log(`📁 파일 메타데이터 생성: ${aiDrivePath}`);
+    console.log(`📄 파일명: ${fileName}, 타입: ${mimeType}`);
 
-    // Base64 데이터를 Buffer로 변환하여 저장
-    const base64Data = fileData.split(',')[1] || fileData;
-    const buffer = Buffer.from(base64Data, 'base64');
-    await fs.writeFile(filePath, buffer);
-
-    console.log(`✅ 파일 저장 완료: ${filePath}`);
-
+    // 🔴 Cloudflare Workers에서는 파일 시스템을 사용할 수 없습니다
+    // ✅ 메타데이터만 반환하고, 실제 파일은 프론트엔드에서 관리합니다
     return c.json({ 
       success: true, 
-      filePath,
-      aiDrivePath: `/거상워크플로우/${sanitizedStoreName}/${sanitizedDocType}/${fileName}`
+      aiDrivePath,
+      metadata: {
+        storeName: sanitizedStoreName,
+        documentType: sanitizedDocType,
+        fileName,
+        mimeType,
+        uploadedAt: new Date().toISOString()
+      }
     });
   } catch (error: any) {
     console.error('파일 업로드 에러:', error);
