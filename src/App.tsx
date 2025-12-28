@@ -48,6 +48,7 @@ const App: React.FC = () => {
   });
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.GEOSANG);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isComposing, setIsComposing] = useState(false); // 한글 입력 중 여부
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -512,7 +513,8 @@ const App: React.FC = () => {
       let filtered = claims;
       
       // 검색어 필터 (최우선 - 검색 시 다른 필터 무시)
-      if (searchTerm.trim()) {
+      // 한글 입력 중(ㅇ, 이, 이ㅈ 등)에는 검색하지 않음
+      if (searchTerm.trim() && !isComposing) {
         const lower = searchTerm.toLowerCase();
         filtered = filtered.filter((c: LaborClaim) => 
           c.workerName.toLowerCase().includes(lower) ||
@@ -543,7 +545,7 @@ const App: React.FC = () => {
       });
       
       return filtered.sort((a: LaborClaim, b: LaborClaim) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [claims, period, selectedWorker, searchTerm]);
+    }, [claims, period, selectedWorker, searchTerm, isComposing]);
     
     const totalAmount = filteredClaims.reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
     const pendingAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'pending').reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
@@ -611,6 +613,8 @@ const App: React.FC = () => {
                 placeholder="이름, 전화번호, 현장명으로 검색..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
                 className="w-full pl-11 pr-10 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none text-sm font-medium transition-all"
               />
               {searchTerm && (
@@ -2322,7 +2326,9 @@ const App: React.FC = () => {
               placeholder="검색..." 
               className="w-full pl-9 lg:pl-12 pr-3 py-2 lg:py-3 border-2 border-slate-100 rounded-lg lg:rounded-2xl bg-slate-50 focus:outline-none focus:border-blue-500 transition-all text-xs lg:text-sm font-medium" 
               value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={() => setIsComposing(false)}
             />
           </div>
 
