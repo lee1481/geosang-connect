@@ -49,7 +49,6 @@ const App: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.GEOSANG);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState(''); // 검색 입력값 (버튼 클릭 전)
-  const [isComposing, setIsComposing] = useState(false); // 한글 입력 중 여부
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -2342,8 +2341,6 @@ const App: React.FC = () => {
               className="w-full pl-9 lg:pl-12 pr-3 py-2 lg:py-3 border-2 border-slate-100 rounded-lg lg:rounded-2xl bg-slate-50 focus:outline-none focus:border-blue-500 transition-all text-xs lg:text-sm font-medium" 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)}
-              onCompositionStart={() => setIsComposing(true)}
-              onCompositionEnd={() => setIsComposing(false)}
             />
           </div>
 
