@@ -301,52 +301,92 @@ export async function extractProjectDocument(fileBase64: string, mimeType: strin
   const ai = new GoogleGenAI({ apiKey });
   
   const prompts: Record<string, string> = {
+    auto: `
+      🔍 이 이미지는 비즈니스 문서입니다. OCR로 텍스트를 추출하고 자동으로 문서 타입을 감지하세요.
+      
+      다음 정보를 추출하세요:
+      1. detectedType: 문서 타입 자동 감지 (quotation/purchase_order/transaction_stmt/delivery_cost/design_proposal/other)
+         - 견적서, 견적, Quotation → "quotation"
+         - 발주서, 주문서, Order → "purchase_order"
+         - 거래명세서, 세금계산서, Invoice → "transaction_stmt"
+         - 영수증, 배송비, 퀵비, Receipt, Delivery → "delivery_cost"
+         - 시안, 디자인, Design → "design_proposal"
+      
+      2. storeName: 매장명 (예: 컴포즈커피 인천점, 스타벅스 강남점)
+      3. franchiseName: 프랜차이즈명 (예: 컴포즈커피, 스타벅스)
+      4. amount: 총 금액 (숫자만, 쉼표 제거)
+      5. date: 날짜 (YYYY-MM-DD 형식)
+      6. supplier: 공급업체명/거래처명 (있는 경우)
+      7. items: 항목 목록 (배열, 있는 경우)
+      8. fullText: OCR로 추출한 전체 텍스트
+      
+      ⚠️ 중요: 
+      - 모든 텍스트를 정확하게 읽어주세요 (한글, 영어, 숫자 모두)
+      - 금액은 쉼표를 제거하고 숫자만 반환
+      - 매장명은 최대한 정확하게 추출
+      - fullText에는 이미지의 모든 텍스트를 포함
+    `,
     design_proposal: `
-      이 이미지는 간판 디자인 시안입니다.
+      🎨 이 이미지는 간판 디자인 시안입니다. OCR로 텍스트를 추출하세요.
+      
       다음 정보를 추출하세요:
       - storeName: 매장명 (예: 컴포즈커피 인천점, 스타벅스 강남점)
       - franchiseName: 프랜차이즈명 (예: 컴포즈커피, 스타벅스)
       - location: 지점명/위치 (예: 인천점, 강남점)
       - designNotes: 디자인 특징 요약
+      - fullText: OCR로 추출한 전체 텍스트
+      - detectedType: "design_proposal"
     `,
     quotation: `
-      이 이미지는 견적서입니다.
+      📋 이 이미지는 견적서입니다. OCR로 모든 텍스트를 정확하게 추출하세요.
+      
       다음 정보를 추출하세요:
       - storeName: 매장명 (예: 컴포즈커피 인천점)
       - franchiseName: 프랜차이즈명
-      - amount: 총 견적 금액 (숫자만)
+      - amount: 총 견적 금액 (숫자만, 쉼표 제거)
       - date: 견적일자 (YYYY-MM-DD)
       - items: 견적 항목 목록 (배열)
+      - fullText: OCR로 추출한 전체 텍스트
+      - detectedType: "quotation"
     `,
     purchase_order: `
-      이 이미지는 발주서입니다.
+      📦 이 이미지는 발주서입니다. OCR로 텍스트를 추출하세요.
+      
       다음 정보를 추출하세요:
       - storeName: 매장명
       - supplier: 공급업체명
       - amount: 발주 금액 (숫자만)
       - date: 발주일자 (YYYY-MM-DD)
       - items: 발주 항목 목록
+      - fullText: OCR로 추출한 전체 텍스트
+      - detectedType: "purchase_order"
     `,
     transaction_stmt: `
-      이 이미지는 거래명세서입니다.
+      🧾 이 이미지는 거래명세서입니다. OCR로 텍스트를 추출하세요.
+      
       다음 정보를 추출하세요:
       - storeName: 매장명 (거래처명에서 추출)
       - supplier: 공급업체명
       - amount: 거래 금액 (숫자만)
       - date: 거래일자 (YYYY-MM-DD)
       - items: 거래 항목 목록
+      - fullText: OCR로 추출한 전체 텍스트
+      - detectedType: "transaction_stmt"
     `,
     delivery_cost: `
-      이 이미지는 배송비/퀵비 영수증입니다.
+      🚚 이 이미지는 배송비/퀵비 영수증입니다. OCR로 텍스트를 추출하세요.
+      
       다음 정보를 추출하세요:
       - storeName: 배송지 매장명
       - amount: 배송비 금액 (숫자만)
       - date: 배송일자 (YYYY-MM-DD)
       - deliveryType: 배송 유형 (택배/퀵/차량/기타)
+      - fullText: OCR로 추출한 전체 텍스트
+      - detectedType: "delivery_cost"
     `
   };
 
-  const prompt = prompts[documentType] || prompts.quotation;
+  const prompt = prompts[documentType] || prompts.auto;
 
   try {
     const response = await ai.models.generateContent({
@@ -362,17 +402,22 @@ export async function extractProjectDocument(fileBase64: string, mimeType: strin
         responseSchema: {
           type: Type.OBJECT,
           properties: {
+            detectedType: { type: Type.STRING },
             storeName: { type: Type.STRING },
             franchiseName: { type: Type.STRING },
             amount: { type: Type.NUMBER },
             date: { type: Type.STRING },
             supplier: { type: Type.STRING },
+            location: { type: Type.STRING },
+            deliveryType: { type: Type.STRING },
+            designNotes: { type: Type.STRING },
+            fullText: { type: Type.STRING },
             items: {
               type: Type.ARRAY,
               items: { type: Type.STRING }
             }
           },
-          required: ["storeName"]
+          required: []
         }
       }
     });

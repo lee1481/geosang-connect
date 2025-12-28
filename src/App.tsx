@@ -953,31 +953,76 @@ const App: React.FC = () => {
                 const base64 = event.target?.result as string;
                 const base64Data = base64.split(',')[1];
 
-                // AI로 문서 자동 분석 (문서 타입 자동 인식)
+                // AI로 문서 자동 분석 (OCR - 이미지 파일 텍스트 추출)
                 let documentType: DocumentType = 'other';
                 let extracted: any = {};
                 
                 try {
-                  // 파일명으로 문서 타입 추정
                   const fileName = file.name.toLowerCase();
-                  if (fileName.includes('견적') || fileName.includes('quote')) {
-                    documentType = 'quotation';
-                    extracted = await extractProjectDocument(base64Data, file.type, 'quotation');
-                  } else if (fileName.includes('발주') || fileName.includes('order')) {
-                    documentType = 'purchase_order';
-                    extracted = await extractProjectDocument(base64Data, file.type, 'purchase_order');
-                  } else if (fileName.includes('거래') || fileName.includes('명세') || fileName.includes('invoice')) {
-                    documentType = 'transaction_stmt';
-                    extracted = await extractProjectDocument(base64Data, file.type, 'transaction_stmt');
-                  } else if (fileName.includes('배송') || fileName.includes('퀵') || fileName.includes('delivery')) {
-                    documentType = 'delivery_cost';
-                    extracted = await extractProjectDocument(base64Data, file.type, 'delivery_cost');
-                  } else if (fileName.includes('시안') || fileName.includes('디자인') || fileName.includes('design')) {
-                    documentType = 'design_proposal';
-                    extracted = await extractProjectDocument(base64Data, file.type, 'design_proposal');
-                  } else {
-                    // 기본: 견적서로 시도
-                    extracted = await extractProjectDocument(base64Data, file.type, 'quotation');
+                  const isImage = file.type.startsWith('image/');
+                  
+                  // 🔍 이미지 파일인 경우 OCR로 분석
+                  if (isImage) {
+                    console.log(`📸 이미지 파일 감지: ${file.name} - OCR 분석 시작...`);
+                    
+                    // 파일명으로 문서 타입 추정 (우선순위)
+                    if (fileName.includes('견적') || fileName.includes('quote')) {
+                      documentType = 'quotation';
+                      console.log('📋 견적서로 분류');
+                      extracted = await extractProjectDocument(base64Data, file.type, 'quotation');
+                    } else if (fileName.includes('발주') || fileName.includes('order')) {
+                      documentType = 'purchase_order';
+                      console.log('📦 발주서로 분류');
+                      extracted = await extractProjectDocument(base64Data, file.type, 'purchase_order');
+                    } else if (fileName.includes('거래') || fileName.includes('명세') || fileName.includes('invoice')) {
+                      documentType = 'transaction_stmt';
+                      console.log('🧾 거래명세서로 분류');
+                      extracted = await extractProjectDocument(base64Data, file.type, 'transaction_stmt');
+                    } else if (fileName.includes('배송') || fileName.includes('퀵') || fileName.includes('delivery') || fileName.includes('영수증') || fileName.includes('receipt')) {
+                      documentType = 'delivery_cost';
+                      console.log('🚚 배송비/영수증으로 분류');
+                      extracted = await extractProjectDocument(base64Data, file.type, 'delivery_cost');
+                    } else if (fileName.includes('시안') || fileName.includes('디자인') || fileName.includes('design')) {
+                      documentType = 'design_proposal';
+                      console.log('🎨 디자인 시안으로 분류');
+                      extracted = await extractProjectDocument(base64Data, file.type, 'design_proposal');
+                    } else {
+                      // 파일명만으로 판단 불가 시 OCR로 내용 분석하여 자동 분류
+                      console.log('🤖 OCR로 문서 타입 자동 감지 중...');
+                      extracted = await extractProjectDocument(base64Data, file.type, 'auto');
+                      
+                      // OCR 결과로 문서 타입 자동 결정
+                      if (extracted.detectedType) {
+                        documentType = extracted.detectedType;
+                        console.log(`✅ 자동 감지됨: ${documentType}`);
+                      } else {
+                        documentType = 'quotation'; // 기본값
+                        console.log('⚠️ 타입 감지 실패, 견적서로 기본 분류');
+                      }
+                    }
+                    
+                    console.log('✅ OCR 분석 완료:', extracted);
+                  } 
+                  // PDF 등 비이미지 파일
+                  else {
+                    if (fileName.includes('견적') || fileName.includes('quote')) {
+                      documentType = 'quotation';
+                      extracted = await extractProjectDocument(base64Data, file.type, 'quotation');
+                    } else if (fileName.includes('발주') || fileName.includes('order')) {
+                      documentType = 'purchase_order';
+                      extracted = await extractProjectDocument(base64Data, file.type, 'purchase_order');
+                    } else if (fileName.includes('거래') || fileName.includes('명세') || fileName.includes('invoice')) {
+                      documentType = 'transaction_stmt';
+                      extracted = await extractProjectDocument(base64Data, file.type, 'transaction_stmt');
+                    } else if (fileName.includes('배송') || fileName.includes('퀵') || fileName.includes('delivery')) {
+                      documentType = 'delivery_cost';
+                      extracted = await extractProjectDocument(base64Data, file.type, 'delivery_cost');
+                    } else if (fileName.includes('시안') || fileName.includes('디자인') || fileName.includes('design')) {
+                      documentType = 'design_proposal';
+                      extracted = await extractProjectDocument(base64Data, file.type, 'design_proposal');
+                    } else {
+                      extracted = await extractProjectDocument(base64Data, file.type, 'quotation');
+                    }
                   }
                 } catch (err) {
                   console.warn('AI extraction failed, using manual input:', err);
