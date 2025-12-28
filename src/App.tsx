@@ -878,6 +878,7 @@ const App: React.FC = () => {
   // 프로젝트 관리 뷰 (손익표) - 개선된 버전
   const ProjectManagementView = () => {
     const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
     const [storeName, setStoreName] = useState('');
     const [franchiseName, setFranchiseName] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -939,6 +940,7 @@ const App: React.FC = () => {
       }
 
       setUploading(true);
+      setUploadProgress({ current: 0, total: files.length });
       const uploadedCount = files.length;
       let successCount = 0;
 
@@ -951,6 +953,7 @@ const App: React.FC = () => {
 
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
+          setUploadProgress({ current: i + 1, total: files.length });
           
           await new Promise((resolve) => {
             const reader = new FileReader();
@@ -1167,6 +1170,30 @@ const App: React.FC = () => {
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">📊 프로젝트 관리 & 손익표</h2>
           <p className="text-xs md:text-sm text-slate-600 mt-2">매장별 문서를 업로드하면 AI가 자동으로 분류하고 손익을 계산합니다</p>
         </div>
+
+        {/* 업로드 진행 상태 */}
+        {uploading && (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-6 animate-pulse">
+            <div className="flex items-center gap-3 mb-3">
+              <Loader2 className="animate-spin text-blue-600" size={24} />
+              <div>
+                <p className="text-lg font-bold text-blue-900">파일 업로드 중...</p>
+                <p className="text-sm text-blue-600">
+                  {uploadProgress.current} / {uploadProgress.total} 파일 처리 중
+                </p>
+              </div>
+            </div>
+            <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
+              <div 
+                className="bg-blue-600 h-full rounded-full transition-all duration-300"
+                style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-blue-500 mt-2 text-center">
+              OCR 분석 및 자동 분류 진행 중... 잠시만 기다려주세요.
+            </p>
+          </div>
+        )}
 
         {/* 간편 업로드 */}
         <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 shadow-lg border-2 border-blue-200 mb-6">
