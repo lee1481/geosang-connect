@@ -495,7 +495,6 @@ const App: React.FC = () => {
 
   // 인건비 청구 관리 뷰
   const LaborClaimView = ({ claims, outsourceWorkers, onAddClaim, onEditClaim, onDeleteClaim, onUpdateStatus }: any) => {
-    const [period, setPeriod] = useState<'week' | 'month' | 'quarter'>('week');
     const [selectedWorker, setSelectedWorker] = useState<string>('all');
     const [workerDetailModal, setWorkerDetailModal] = useState<string | null>(null);
     
@@ -507,22 +506,8 @@ const App: React.FC = () => {
         filtered = filtered.filter((c: LaborClaim) => c.workerId === selectedWorker);
       }
       
-      // 기간 필터
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const startOfQuarter = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-      
-      filtered = filtered.filter((c: LaborClaim) => {
-        const claimDate = new Date(c.date);
-        if (period === 'week') return claimDate >= startOfWeek;
-        if (period === 'month') return claimDate >= startOfMonth;
-        return claimDate >= startOfQuarter;
-      });
-      
       return filtered.sort((a: LaborClaim, b: LaborClaim) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [claims, period, selectedWorker]);
+    }, [claims, selectedWorker]);
     
     const totalAmount = filteredClaims.reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
     const pendingAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'pending').reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
@@ -580,10 +565,6 @@ const App: React.FC = () => {
           {/* 필터 & 액션 */}
           <div className="flex flex-wrap gap-3 items-center justify-between">
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => setPeriod('week')} className={`px-4 py-2 rounded-lg font-bold text-xs ${period === 'week' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>주간</button>
-              <button onClick={() => setPeriod('month')} className={`px-4 py-2 rounded-lg font-bold text-xs ${period === 'month' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>월간</button>
-              <button onClick={() => setPeriod('quarter')} className={`px-4 py-2 rounded-lg font-bold text-xs ${period === 'quarter' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>분기</button>
-              
               <select value={selectedWorker} onChange={(e) => setSelectedWorker(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold">
                 <option value="all">전체 일당</option>
                 {outsourceWorkers.map((w: Contact) => (
@@ -617,12 +598,12 @@ const App: React.FC = () => {
                   
                   const link = document.createElement("a");
                   link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }));
-                  link.download = `인건비청구_${period}_${new Date().toISOString().split('T')[0]}.csv`;
+                  link.download = `인건비청구_${new Date().toISOString().split('T')[0]}.csv`;
                   link.click();
                 }}
                 className="bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-emerald-700"
               >
-                <Download size={18} /> 손익표 다운로드
+                <Download size={18} /> 청구서 다운로드
               </button>
               <button onClick={onAddClaim} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-blue-700">
                 <Plus size={18} /> 청구 등록
