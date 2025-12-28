@@ -180,7 +180,11 @@ const App: React.FC = () => {
   }, [contacts]);
 
   useEffect(() => {
+    console.log('=== localStorage 저장 ===');
+    console.log('저장할 laborClaims:', laborClaims);
+    console.log('laborClaims 개수:', laborClaims.length);
     localStorage.setItem('geosang_labor_claims_v1', JSON.stringify(laborClaims));
+    console.log('localStorage에 저장 완료');
   }, [laborClaims]);
 
   useEffect(() => {
@@ -2321,11 +2325,27 @@ const App: React.FC = () => {
         <LaborClaimModal
           onClose={() => setIsLaborClaimModalOpen(false)}
           onSubmit={(claim: LaborClaim) => {
+            console.log('=== onSubmit 호출됨 ===');
+            console.log('받은 claim 데이터:', claim);
+            console.log('editingClaim:', editingClaim);
+            
             if (editingClaim) {
-              setLaborClaims(prev => prev.map(c => c.id === claim.id ? claim : c));
+              console.log('수정 모드: 기존 청구 업데이트');
+              setLaborClaims(prev => {
+                const updated = prev.map(c => c.id === claim.id ? claim : c);
+                console.log('업데이트된 laborClaims:', updated);
+                return updated;
+              });
             } else {
-              setLaborClaims(prev => [...prev, claim]);
+              console.log('등록 모드: 새 청구 추가');
+              setLaborClaims(prev => {
+                const newClaims = [...prev, claim];
+                console.log('새로운 laborClaims:', newClaims);
+                return newClaims;
+              });
             }
+            
+            console.log('모달 닫기');
             setIsLaborClaimModalOpen(false);
           }}
           initialData={editingClaim}
@@ -2529,11 +2549,21 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
       allocatedAmount: totalHours > 0 ? Math.round((site.hours / totalHours) * totalAmount) : 0
     }));
     
-    onSubmit({
+    const claimData = {
       ...formData,
       sites: sitesWithAllocation,
       totalAmount
-    } as LaborClaim);
+    } as LaborClaim;
+    
+    console.log('=== 청구 등록 시작 ===');
+    console.log('claimData:', claimData);
+    console.log('workerId:', claimData.workerId);
+    console.log('workerName:', claimData.workerName);
+    console.log('date:', claimData.date);
+    console.log('sites:', claimData.sites);
+    console.log('totalAmount:', claimData.totalAmount);
+    
+    onSubmit(claimData);
   };
   
   return (
