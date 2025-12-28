@@ -659,6 +659,12 @@ const App: React.FC = () => {
               >
                 <Download size={18} /> 청구서 다운로드
               </button>
+              <button 
+                onClick={onAddClaim} 
+                className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-blue-700"
+              >
+                <Plus size={18} /> 청구 등록
+              </button>
             </div>
           </div>
         </div>
@@ -2305,13 +2311,6 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
-            <button 
-              onClick={() => { setEditingContact(null); setIsModalOpen(true); }} 
-              className="bg-blue-600 text-white px-3 md:px-4 lg:px-5 py-2 md:py-2.5 lg:py-3 rounded-lg md:rounded-xl font-bold hover:bg-blue-700 flex items-center gap-1.5 md:gap-2 shadow-lg shadow-blue-100 flex-shrink-0"
-            >
-              <Plus size={18} className="md:w-5 md:h-5" /> 
-              <span className="text-xs md:text-sm">신규등록</span>
-            </button>
           </div>
         </header>
 
