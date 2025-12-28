@@ -5,10 +5,10 @@
   "scripts": {
     "dev:client": "vite",
     "dev:worker": "wrangler dev dist/worker/index.js --local --port 8787",
-    "build:client": "vite build && cp dist/public/_routes.json dist/_routes.json",
-    "build:worker": "esbuild functions/[[path]].ts --bundle --format=esm --outfile=dist/_worker.js",
+    "build:client": "vite build",
+    "build:worker": "esbuild functions/[[path]].ts --bundle --format=esm --outfile=dist/public/_worker.js",
     "build": "npm run build:client && npm run build:worker",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name webapp",
+    "deploy": "npm run build && wrangler pages deploy dist/public --project-name webapp",
     "db:create": "wrangler d1 create webapp-production",
     "db:migrate:local": "wrangler d1 migrations apply webapp-production --local",
     "db:migrate:prod": "wrangler d1 migrations apply webapp-production",
