@@ -5,10 +5,10 @@
   "scripts": {
     "dev:client": "vite",
     "dev:worker": "wrangler dev dist/worker/index.js --local --port 8787",
-    "build:client": "vite build",
-    "build:worker": "esbuild src/worker/index.ts --bundle --format=esm --outfile=dist/worker/index.js --external:__STATIC_CONTENT_MANIFEST",
-    "build": "npm run build:worker && npm run build:client",
-    "deploy": "npm run build && wrangler pages deploy dist/public --project-name webapp",
+    "build:client": "vite build && cp dist/public/_routes.json dist/_routes.json",
+    "build:worker": "esbuild functions/[[path]].ts --bundle --format=esm --outfile=dist/_worker.js",
+    "build": "npm run build:client && npm run build:worker",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name webapp",
     "db:create": "wrangler d1 create webapp-production",
     "db:migrate:local": "wrangler d1 migrations apply webapp-production --local",
     "db:migrate:prod": "wrangler d1 migrations apply webapp-production",
@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251225.0",
+    "@hono/vite-cloudflare-pages": "^0.4.3",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
