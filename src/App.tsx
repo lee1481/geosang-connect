@@ -47,8 +47,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.GEOSANG);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchInput, setSearchInput] = useState(''); // 검색 입력값 (버튼 클릭 전)
+  // 검색 기능 제거됨
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -512,18 +511,6 @@ const App: React.FC = () => {
     const filteredClaims = useMemo(() => {
       let filtered = claims;
       
-      // 검색어 필터 (최우선 - 검색 버튼 클릭 시에만 실행)
-      if (searchTerm.trim()) {
-        const lower = searchTerm.toLowerCase();
-        filtered = filtered.filter((c: LaborClaim) => 
-          c.workerName.toLowerCase().includes(lower) ||
-          c.workerPhone?.toLowerCase().includes(lower) ||
-          c.sites.some((s: WorkSite) => s.siteName.toLowerCase().includes(lower))
-        );
-        // 검색 시에는 날짜순 정렬만 하고 반환
-        return filtered.sort((a: LaborClaim, b: LaborClaim) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      }
-      
       // 일당 필터
       if (selectedWorker !== 'all') {
         filtered = filtered.filter((c: LaborClaim) => c.workerId === selectedWorker);
@@ -544,7 +531,7 @@ const App: React.FC = () => {
       });
       
       return filtered.sort((a: LaborClaim, b: LaborClaim) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [claims, period, selectedWorker, searchTerm]);
+    }, [claims, period, selectedWorker]);
     
     const totalAmount = filteredClaims.reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
     const pendingAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'pending').reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
@@ -556,11 +543,7 @@ const App: React.FC = () => {
         <div className="mb-6">
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">💰 인건비 청구 관리</h2>
           <p className="text-xs md:text-sm text-slate-600 mt-2">
-            {searchTerm ? (
-              <span className="text-blue-600 font-bold">'{searchTerm}' 검색 결과: {filteredClaims.length}건</span>
-            ) : (
-              '외주 일당의 인건비 청구 내역을 간편하게 관리하세요'
-            )}
+            외주 일당의 인건비 청구 내역을 간편하게 관리하세요
           </p>
         </div>
         
@@ -603,50 +586,6 @@ const App: React.FC = () => {
         
         {/* 검색 & 필터 */}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-6">
-          {/* 검색창 */}
-          <div className="mb-4">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="이름, 전화번호, 현장명으로 검색..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      setSearchTerm(searchInput);
-                    }
-                  }}
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none text-sm font-medium transition-all"
-                />
-              </div>
-              <button
-                onClick={() => setSearchTerm(searchInput)}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all flex items-center gap-2 whitespace-nowrap"
-              >
-                <Search size={18} />
-                검색
-              </button>
-              {searchTerm && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSearchInput('');
-                  }}
-                  className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all"
-                >
-                  <X size={18} />
-                </button>
-              )}
-            </div>
-            {searchTerm && (
-              <p className="text-xs text-blue-600 font-bold mt-2">
-                🔍 '{searchTerm}' 검색 결과: {filteredClaims.length}건
-              </p>
-            )}
-          </div>
-
           {/* 필터 & 액션 */}
           <div className="flex flex-wrap gap-3 items-center justify-between">
             <div className="flex flex-wrap gap-2">
@@ -705,31 +644,15 @@ const App: React.FC = () => {
         <div className="space-y-3">
           {filteredClaims.length === 0 ? (
             <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-slate-200">
-              {searchTerm ? (
-                <>
-                  <Search size={48} className="mx-auto text-slate-300 mb-4" />
-                  <p className="text-slate-500 font-bold">'{searchTerm}' 검색 결과가 없습니다</p>
-                  <p className="text-xs text-slate-400 mt-2">다른 검색어를 입력하거나 전체 목록을 확인해보세요</p>
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700"
-                  >
-                    검색 초기화
-                  </button>
-                </>
-              ) : (
-                <>
-                  <FileText size={48} className="mx-auto text-slate-300 mb-4" />
-                  <p className="text-slate-500 font-bold">청구 내역이 없습니다</p>
-                  <p className="text-xs text-slate-400 mt-2">새로운 청구를 등록해보세요</p>
-                  <button
-                    onClick={onAddClaim}
-                    className="mt-4 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 mx-auto hover:bg-blue-700"
-                  >
-                    <Plus size={18} /> 청구 등록
-                  </button>
-                </>
-              )}
+              <FileText size={48} className="mx-auto text-slate-300 mb-4" />
+              <p className="text-slate-500 font-bold">청구 내역이 없습니다</p>
+              <p className="text-xs text-slate-400 mt-2">새로운 청구를 등록해보세요</p>
+              <button
+                onClick={onAddClaim}
+                className="mt-4 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 mx-auto hover:bg-blue-700"
+              >
+                <Plus size={18} /> 청구 등록
+              </button>
             </div>
           ) : (
             filteredClaims.map((claim: LaborClaim) => (
@@ -2332,42 +2255,8 @@ const App: React.FC = () => {
             <Menu size={24} />
           </button>
           
-          {/* 검색창: 버튼 방식으로 변경 */}
-          <div className="flex-1 max-w-xs md:max-w-md lg:max-w-xl flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="검색..." 
-                className="w-full pl-9 lg:pl-12 pr-3 py-2 lg:py-3 border-2 border-slate-100 rounded-lg lg:rounded-2xl bg-slate-50 focus:outline-none focus:border-blue-500 transition-all text-xs lg:text-sm font-medium" 
-                value={searchInput} 
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    setSearchTerm(searchInput);
-                  }
-                }}
-              />
-            </div>
-            <button
-              onClick={() => setSearchTerm(searchInput)}
-              className="px-3 lg:px-4 py-2 lg:py-3 bg-blue-600 text-white rounded-lg lg:rounded-xl font-bold text-xs lg:text-sm hover:bg-blue-700 transition-all whitespace-nowrap"
-            >
-              <Search size={16} className="lg:hidden" />
-              <span className="hidden lg:inline">검색</span>
-            </button>
-            {searchTerm && (
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setSearchInput('');
-                }}
-                className="px-2 lg:px-3 py-2 lg:py-3 bg-slate-200 text-slate-600 rounded-lg lg:rounded-xl hover:bg-slate-300 transition-all"
-              >
-                <X size={16} />
-              </button>
-            )}
-          </div>
+          {/* 검색 기능 제거됨 */}
+          <div className="flex-1"></div>
 
           {/* 액션 버튼들: 반응형 레이아웃 */}
           <div className="flex items-center gap-1 md:gap-2 lg:gap-3">
