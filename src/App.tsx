@@ -2332,16 +2332,41 @@ const App: React.FC = () => {
             <Menu size={24} />
           </button>
           
-          {/* 검색창: 반응형 크기 조정 */}
-          <div className="flex-1 max-w-xs md:max-w-md lg:max-w-xl relative">
-            <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="검색..." 
-              className="w-full pl-9 lg:pl-12 pr-3 py-2 lg:py-3 border-2 border-slate-100 rounded-lg lg:rounded-2xl bg-slate-50 focus:outline-none focus:border-blue-500 transition-all text-xs lg:text-sm font-medium" 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          {/* 검색창: 버튼 방식으로 변경 */}
+          <div className="flex-1 max-w-xs md:max-w-md lg:max-w-xl flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input 
+                type="text" 
+                placeholder="검색..." 
+                className="w-full pl-9 lg:pl-12 pr-3 py-2 lg:py-3 border-2 border-slate-100 rounded-lg lg:rounded-2xl bg-slate-50 focus:outline-none focus:border-blue-500 transition-all text-xs lg:text-sm font-medium" 
+                value={searchInput} 
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    setSearchTerm(searchInput);
+                  }
+                }}
+              />
+            </div>
+            <button
+              onClick={() => setSearchTerm(searchInput)}
+              className="px-3 lg:px-4 py-2 lg:py-3 bg-blue-600 text-white rounded-lg lg:rounded-xl font-bold text-xs lg:text-sm hover:bg-blue-700 transition-all whitespace-nowrap"
+            >
+              <Search size={16} className="lg:hidden" />
+              <span className="hidden lg:inline">검색</span>
+            </button>
+            {searchTerm && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSearchInput('');
+                }}
+                className="px-2 lg:px-3 py-2 lg:py-3 bg-slate-200 text-slate-600 rounded-lg lg:rounded-xl hover:bg-slate-300 transition-all"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
           {/* 액션 버튼들: 반응형 레이아웃 */}
