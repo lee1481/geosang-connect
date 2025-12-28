@@ -48,6 +48,7 @@ const App: React.FC = () => {
   });
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.GEOSANG);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // 검색 입력값 (버튼 클릭 전)
   const [isComposing, setIsComposing] = useState(false); // 한글 입력 중 여부
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -512,9 +513,8 @@ const App: React.FC = () => {
     const filteredClaims = useMemo(() => {
       let filtered = claims;
       
-      // 검색어 필터 (최우선 - 검색 시 다른 필터 무시)
-      // 한글 입력 중(ㅇ, 이, 이ㅈ 등)에는 검색하지 않음
-      if (searchTerm.trim() && !isComposing) {
+      // 검색어 필터 (최우선 - 검색 버튼 클릭 시에만 실행)
+      if (searchTerm.trim()) {
         const lower = searchTerm.toLowerCase();
         filtered = filtered.filter((c: LaborClaim) => 
           c.workerName.toLowerCase().includes(lower) ||
@@ -545,7 +545,7 @@ const App: React.FC = () => {
       });
       
       return filtered.sort((a: LaborClaim, b: LaborClaim) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [claims, period, selectedWorker, searchTerm, isComposing]);
+    }, [claims, period, selectedWorker, searchTerm]);
     
     const totalAmount = filteredClaims.reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
     const pendingAmount = filteredClaims.filter((c: LaborClaim) => c.status === 'pending').reduce((sum: number, c: LaborClaim) => sum + c.totalAmount, 0);
@@ -606,23 +606,38 @@ const App: React.FC = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-6">
           {/* 검색창 */}
           <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-              <input
-                type="text"
-                placeholder="이름, 전화번호, 현장명으로 검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onCompositionStart={() => setIsComposing(true)}
-                onCompositionEnd={() => setIsComposing(false)}
-                className="w-full pl-11 pr-10 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none text-sm font-medium transition-all"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="이름, 전화번호, 현장명으로 검색..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      setSearchTerm(searchInput);
+                    }
+                  }}
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none text-sm font-medium transition-all"
+                />
+              </div>
+              <button
+                onClick={() => setSearchTerm(searchInput)}
+                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <Search size={18} />
+                검색
+              </button>
               {searchTerm && (
                 <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSearchInput('');
+                  }}
+                  className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               )}
             </div>
