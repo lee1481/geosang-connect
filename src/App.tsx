@@ -370,10 +370,22 @@ const App: React.FC = () => {
               </div>
             )}
             {canManage && (
-              <>
-                <button onClick={onEdit} className="text-slate-300 hover:text-blue-600 p-2"><Pencil size={16} /></button>
-                <button onClick={onDelete} className="text-slate-300 hover:text-red-500 p-2"><Trash2 size={16} /></button>
-              </>
+              <div className="flex gap-1">
+                <button 
+                  onClick={onEdit} 
+                  className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all duration-200 hover:scale-105"
+                  title="수정"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button 
+                  onClick={onDelete} 
+                  className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all duration-200 hover:scale-105"
+                  title="삭제"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             )}
           </div>
         </div>
