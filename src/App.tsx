@@ -943,6 +943,12 @@ const App: React.FC = () => {
       let successCount = 0;
 
       try {
+        // 🔧 여러 파일 동시 업로드를 위한 임시 프로젝트 맵
+        const projectsMap = new Map<string, Project>();
+        
+        // 현재 projects 복사
+        projects.forEach(p => projectsMap.set(p.id, { ...p, documents: [...p.documents] }));
+
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           
@@ -1034,12 +1040,14 @@ const App: React.FC = () => {
                   ? `${franchiseName.trim()} ${storeName.trim()}`
                   : storeName.trim();
 
-                // 프로젝트 찾기 또는 생성
-                let project = projects.find(p => p.storeName === fullStoreName);
+                // 🔧 프로젝트 찾기 또는 생성 (임시 맵에서)
+                let project = projectsMap.get(Array.from(projectsMap.values()).find(p => p.storeName === fullStoreName)?.id || '');
                 
                 if (!project) {
+                  // 새 프로젝트 생성
+                  const newProjectId = `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                   project = {
-                    id: `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    id: newProjectId,
                     storeName: fullStoreName,
                     franchiseName: franchiseName.trim() || fullStoreName.split(' ')[0],
                     location: fullStoreName,
@@ -1052,6 +1060,7 @@ const App: React.FC = () => {
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                   };
+                  projectsMap.set(newProjectId, project);
                 }
 
                 // 문서 추가
@@ -1099,14 +1108,8 @@ const App: React.FC = () => {
 
                 project.updatedAt = new Date().toISOString();
 
-                // 프로젝트 저장
-                setProjects(prev => {
-                  const existing = prev.find(p => p.id === project!.id);
-                  if (existing) {
-                    return prev.map(p => p.id === project!.id ? project! : p);
-                  }
-                  return [...prev, project!];
-                });
+                // 🔧 임시 맵에 저장 (상태 업데이트는 나중에 한 번만)
+                projectsMap.set(project.id, project);
 
                 successCount++;
                 resolve(true);
@@ -1118,6 +1121,12 @@ const App: React.FC = () => {
             reader.readAsDataURL(file);
           });
         }
+
+        // 🔧 모든 파일 처리 완료 후 한 번에 상태 업데이트
+        console.log(`✅ 모든 파일 처리 완료: ${successCount}/${uploadedCount}개`);
+        const updatedProjects = Array.from(projectsMap.values());
+        setProjects(updatedProjects);
+        console.log('📊 프로젝트 상태 업데이트 완료:', updatedProjects);
 
         alert(`✅ 업로드 완료!\n\n매장: ${franchiseName} ${storeName}\n파일: ${successCount}/${uploadedCount}개`);
         
