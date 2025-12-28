@@ -2323,7 +2323,10 @@ const App: React.FC = () => {
       )}
       {isLaborClaimModalOpen && (
         <LaborClaimModal
-          onClose={() => setIsLaborClaimModalOpen(false)}
+          onClose={() => {
+            setIsLaborClaimModalOpen(false);
+            setEditingClaim(null); // 모달 닫을 때 editingClaim 초기화
+          }}
           onSubmit={(claim: LaborClaim) => {
             console.log('=== onSubmit 호출됨 ===');
             console.log('받은 claim 데이터:', claim);
@@ -2347,6 +2350,7 @@ const App: React.FC = () => {
             
             console.log('모달 닫기');
             setIsLaborClaimModalOpen(false);
+            setEditingClaim(null); // 등록/수정 후 editingClaim 초기화
           }}
           initialData={editingClaim}
           outsourceWorkers={contacts.filter(c => c.category === CategoryType.OUTSOURCE)}
@@ -2358,32 +2362,47 @@ const App: React.FC = () => {
 
 // 인건비 청구 등록/수정 모달
 const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: any) => {
+  const getInitialFormData = () => ({
+    id: 'claim-' + Date.now(),
+    workerId: '',
+    workerName: '',
+    workerPhone: '',
+    date: new Date().toISOString().split('T')[0],
+    sites: [{ id: 'site-1', siteName: '', hours: 0 }],
+    breakdown: {
+      basePay: 0,
+      overtimeHours: 0,
+      overtimePay: 0,
+      transportFee: 0,
+      mealFee: 0,
+      fuelFee: 0,
+      tollFee: 0,
+      otherFee: 0,
+      otherFeeDesc: ''
+    },
+    totalAmount: 0,
+    receiptImages: [],
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    rawText: ''
+  });
+  
   const [formData, setFormData] = useState<Partial<LaborClaim>>(
-    initialData || {
-      id: 'claim-' + Date.now(),
-      workerId: '',
-      workerName: '',
-      workerPhone: '',
-      date: new Date().toISOString().split('T')[0],
-      sites: [{ id: 'site-1', siteName: '', hours: 0 }],
-      breakdown: {
-        basePay: 0,
-        overtimeHours: 0,
-        overtimePay: 0,
-        transportFee: 0,
-        mealFee: 0,
-        fuelFee: 0,
-        tollFee: 0,
-        otherFee: 0,
-        otherFeeDesc: ''
-      },
-      totalAmount: 0,
-      receiptImages: [],
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      rawText: ''
-    }
+    initialData || getInitialFormData()
   );
+  
+  // initialData가 변경될 때마다 formData 업데이트
+  useEffect(() => {
+    console.log('=== LaborClaimModal useEffect ===');
+    console.log('initialData:', initialData);
+    if (initialData) {
+      console.log('수정 모드: initialData로 formData 설정');
+      setFormData(initialData);
+    } else {
+      console.log('등록 모드: 새 formData 생성');
+      setFormData(getInitialFormData());
+    }
+  }, [initialData]);
   
   const [inputMode, setInputMode] = useState<'form' | 'text'>('text');
   const [isTextParsing, setIsTextParsing] = useState(false);
