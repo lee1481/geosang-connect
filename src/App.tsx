@@ -249,22 +249,8 @@ const App: React.FC = () => {
 
   const filteredContacts = useMemo(() => {
     let list = contacts.filter(c => c.category === activeCategory);
-    if (searchTerm.trim()) {
-      const lower = searchTerm.toLowerCase();
-      return list.map(contact => {
-        const companyMatch = contact.brandName?.toLowerCase().includes(lower) || contact.subCategory?.toLowerCase().includes(lower) || contact.industry?.toLowerCase().includes(lower);
-        const matchingStaff = contact.staffList.filter(s => 
-          s.name.toLowerCase().includes(lower) || 
-          s.phone.toLowerCase().includes(lower) || 
-          s.department?.toLowerCase().includes(lower) ||
-          s.region?.toLowerCase().includes(lower)
-        );
-        if (companyMatch || matchingStaff.length > 0) return { ...contact, staffList: matchingStaff.length > 0 ? matchingStaff : contact.staffList };
-        return null;
-      }).filter((c): c is Contact => c !== null);
-    }
     return list;
-  }, [contacts, activeCategory, searchTerm]);
+  }, [contacts, activeCategory]);
 
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!isAdmin) return;
@@ -2308,7 +2294,7 @@ const App: React.FC = () => {
           <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth">
             <div className="mb-4 md:mb-6 lg:mb-10">
               <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">{getCategoryName(activeCategory)}</h2>
-              <p className="text-[10px] md:text-xs lg:text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">{searchTerm ? `'${searchTerm}' 결과: ` : '데이터 현황: '}{filteredContacts.length}건</p>
+              <p className="text-[10px] md:text-xs lg:text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">데이터 현황: {filteredContacts.length}건</p>
             </div>
             
             {/* 반응형 그리드: 모바일 1열, 태블릿 2열, PC 3열 */}
