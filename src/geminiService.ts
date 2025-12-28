@@ -1,8 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
+// API 키 가져오기 (Vite 환경 변수)
+const getApiKey = () => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'your-gemini-api-key-here') {
+    console.warn('⚠️ Gemini API 키가 설정되지 않았습니다. .env 파일에 VITE_GEMINI_API_KEY를 설정해주세요.');
+    return null;
+  }
+  return apiKey;
+};
+
 // 인건비 청구 내역서 OCR (영수증 OCR)
 export async function extractReceiptData(fileBase64: string, mimeType: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API 키가 설정되지 않았습니다.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
     다음은 영수증 또는 지출 내역서입니다.
@@ -57,7 +71,11 @@ export async function extractReceiptData(fileBase64: string, mimeType: string) {
 
 // 문자 메시지 형식 파싱 (AI 기반) - 다중 현장 지원
 export async function parseLaborClaimText(text: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API 키가 설정되지 않았습니다.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
     다음은 외주 일당이 보낸 인건비 청구 문자입니다.
@@ -128,7 +146,11 @@ export async function parseLaborClaimText(text: string) {
 }
 
 export async function extractConstructionData(fileBase64: string, mimeType: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API 키가 설정되지 않았습니다.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
     다음은 시공비 내역서(이미지 또는 문서)입니다. 
@@ -173,7 +195,11 @@ export async function extractConstructionData(fileBase64: string, mimeType: stri
 }
 
 export async function extractBusinessLicenseData(fileBase64: string, mimeType: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API 키가 설정되지 않았습니다.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
     이 이미지는 한국의 사업자등록증입니다. 
@@ -214,7 +240,11 @@ export async function extractBusinessLicenseData(fileBase64: string, mimeType: s
 }
 
 export async function extractBusinessCardData(fileBase64: string, mimeType: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API 키가 설정되지 않았습니다.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
     이 이미지는 명함입니다. 
@@ -264,7 +294,11 @@ export async function extractBusinessCardData(fileBase64: string, mimeType: stri
 
 // 프로젝트 문서 자동 분석 (매장명, 금액 추출)
 export async function extractProjectDocument(fileBase64: string, mimeType: string, documentType: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API 키가 설정되지 않았습니다.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompts: Record<string, string> = {
     design_proposal: `

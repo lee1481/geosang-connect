@@ -40,13 +40,24 @@
 npm install
 ```
 
-### 2. D1 데이터베이스 설정
+### 2. 환경 변수 설정
+```bash
+# .env 파일 생성
+cp .env.example .env
+
+# .env 파일을 열어서 API 키 설정
+# VITE_GEMINI_API_KEY=your-actual-api-key-here
+```
+
+**⚠️ 중요**: Gemini API 키는 [Google AI Studio](https://aistudio.google.com/app/apikey)에서 발급받을 수 있습니다.
+
+### 3. D1 데이터베이스 설정
 ```bash
 # 로컬 D1 마이그레이션
 npm run db:migrate:local
 ```
 
-### 3. 개발 서버 실행
+### 4. 개발 서버 실행
 ```bash
 # Worker 빌드
 npm run build:worker
