@@ -1185,7 +1185,37 @@ const App: React.FC = () => {
                   console.log(`✅ 기존 프로젝트 발견: ${fullStoreName} (ID: ${project.id})`);
                 }
 
-                // 문서 추가
+                // AI 드라이브에 파일 저장
+                const timeStamp = new Date().toISOString().split('T')[0];
+                const fileNameWithDate = `${timeStamp}_${file.name}`;
+                let filePath = '';
+                let savedToAiDrive = false;
+                
+                try {
+                  const uploadResponse = await fetch('/api/files/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      storeName: fullStoreName,
+                      fileName: fileNameWithDate,
+                      fileData: base64Data,
+                      mimeType: file.type
+                    })
+                  });
+                  
+                  if (uploadResponse.ok) {
+                    const result = await uploadResponse.json();
+                    filePath = result.filePath || result.aiDrivePath || '';
+                    savedToAiDrive = true;
+                    console.log(`✅ AI 드라이브 저장 완료: ${result.aiDrivePath}`);
+                  } else {
+                    console.warn('⚠️ AI 드라이브 저장 실패, 메모리에 저장합니다.');
+                  }
+                } catch (err) {
+                  console.warn('❌ AI 드라이브 저장 실패, 메모리에 저장:', err);
+                }
+                
+                // 문서 추가 (AI 드라이브 경로 또는 base64)
                 const document: ProjectDocument = {
                   id: `doc-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
                   projectId: project.id,
@@ -1193,7 +1223,12 @@ const App: React.FC = () => {
                   documentType,
                   title: file.name,
                   amount: extracted.amount || 0,
-                  file: {
+                  file: savedToAiDrive ? {
+                    path: filePath,
+                    name: file.name,
+                    mimeType: file.type,
+                    size: file.size
+                  } : {
                     data: base64Data,
                     name: file.name,
                     mimeType: file.type,

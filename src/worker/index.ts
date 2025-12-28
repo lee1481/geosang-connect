@@ -309,4 +309,44 @@ app.put('/api/settings/rename', async (c) => {
   }
 });
 
+// ========== 파일 업로드 API ==========
+app.post('/api/files/upload', async (c) => {
+  try {
+    const { storeName, fileName, fileData, mimeType } = await c.req.json();
+    
+    if (!storeName || !fileName || !fileData) {
+      return c.json({ error: '필수 파라미터가 누락되었습니다.' }, 400);
+    }
+
+    // AI 드라이브 경로 생성: /mnt/aidrive/거상워크플로우/{지점명}/
+    const sanitizedStoreName = storeName.replace(/[\/\\:*?"<>|]/g, '_');
+    const dirPath = `/mnt/aidrive/거상워크플로우/${sanitizedStoreName}`;
+    const filePath = `${dirPath}/${fileName}`;
+
+    // 디렉토리 생성 (없으면)
+    const fs = await import('fs/promises');
+    try {
+      await fs.mkdir(dirPath, { recursive: true });
+    } catch (mkdirError: any) {
+      console.error('디렉토리 생성 실패:', mkdirError);
+    }
+
+    // Base64 데이터를 Buffer로 변환하여 저장
+    const base64Data = fileData.split(',')[1] || fileData;
+    const buffer = Buffer.from(base64Data, 'base64');
+    await fs.writeFile(filePath, buffer);
+
+    console.log(`✅ 파일 저장 완료: ${filePath}`);
+
+    return c.json({ 
+      success: true, 
+      filePath,
+      aiDrivePath: `/거상워크플로우/${sanitizedStoreName}/${fileName}`
+    });
+  } catch (error: any) {
+    console.error('파일 업로드 에러:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
 export default app;
