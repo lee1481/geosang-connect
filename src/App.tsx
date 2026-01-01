@@ -253,7 +253,15 @@ const App: React.FC = () => {
         if (contactsResponse.success && contactsResponse.data) {
           console.log('=== Contacts 초기 데이터 로드 ===');
           console.log('API에서 가져온 데이터:', contactsResponse.data);
-          setContacts(contactsResponse.data);
+          // 모든 주민번호를 문자열로 변환
+          const sanitizedContacts = contactsResponse.data.map((contact: any) => ({
+            ...contact,
+            staffList: contact.staffList?.map((staff: any) => ({
+              ...staff,
+              residentNumber: staff.residentNumber ? String(staff.residentNumber) : staff.residentNumber
+            }))
+          }));
+          setContacts(sanitizedContacts);
         }
         
         // Labor Claims 로드
@@ -2305,7 +2313,15 @@ const App: React.FC = () => {
                 if (response.success && response.data) {
                   console.log('=== 메인 화면에 업데이트할 데이터 ===');
                   console.log('response.data:', response.data);
-                  setContacts(prev => prev.map(old => old.id === c.id ? response.data : old));
+                  // 주민번호를 문자열로 변환
+                  const sanitizedData = {
+                    ...response.data,
+                    staffList: response.data.staffList?.map((staff: any) => ({
+                      ...staff,
+                      residentNumber: staff.residentNumber ? String(staff.residentNumber) : staff.residentNumber
+                    }))
+                  };
+                  setContacts(prev => prev.map(old => old.id === c.id ? sanitizedData : old));
                   setIsModalOpen(false);
                 } else {
                   alert('수정 실패: ' + (response.error || '알 수 없는 오류'));
@@ -2324,7 +2340,15 @@ const App: React.FC = () => {
                 if (response.success && response.data) {
                   console.log('=== 메인 화면에 추가할 데이터 ===');
                   console.log('response.data:', response.data);
-                  setContacts(prev => [...prev, response.data]);
+                  // 주민번호를 문자열로 변환
+                  const sanitizedData = {
+                    ...response.data,
+                    staffList: response.data.staffList?.map((staff: any) => ({
+                      ...staff,
+                      residentNumber: staff.residentNumber ? String(staff.residentNumber) : staff.residentNumber
+                    }))
+                  };
+                  setContacts(prev => [...prev, sanitizedData]);
                   setIsModalOpen(false);
                 } else {
                   alert('등록 실패: ' + (response.error || '알 수 없는 오류'));
