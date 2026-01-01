@@ -603,22 +603,20 @@ const App: React.FC = () => {
               </div>
             )}
             {canManage && (
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 <button 
                   onClick={onEdit} 
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 hover:scale-105 shadow-md text-xs font-bold"
+                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white transition-all duration-200 hover:scale-110"
                   title="수정"
                 >
-                  <Pencil size={14} />
-                  <span>수정</span>
+                  <Pencil size={16} />
                 </button>
                 <button 
                   onClick={onDelete} 
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all duration-200 hover:scale-105 shadow-md text-xs font-bold"
+                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-red-600 hover:text-white transition-all duration-200 hover:scale-110"
                   title="삭제"
                 >
-                  <Trash2 size={14} />
-                  <span>삭제</span>
+                  <Trash2 size={16} />
                 </button>
               </div>
             )}
