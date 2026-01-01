@@ -1794,8 +1794,8 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
-            {/* 인건비 청구 페이지에서는 신규등록 버튼 숨김 */}
-            {!isLaborClaimView && (
+            {/* 인건비 청구 및 비밀번호 관리 페이지에서는 신규등록 버튼 숨김 */}
+            {!isLaborClaimView && !isPasswordManagerView && (
               <button 
                 onClick={() => { setEditingContact(null); setIsModalOpen(true); }} 
                 className="bg-blue-600 text-white px-3 md:px-4 lg:px-5 py-2 md:py-2.5 lg:py-3 rounded-lg md:rounded-xl font-bold hover:bg-blue-700 flex items-center gap-1.5 md:gap-2 shadow-lg shadow-blue-100 flex-shrink-0"
