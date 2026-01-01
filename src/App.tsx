@@ -6,7 +6,7 @@ import {
   MapPin, CreditCard, FileText, Upload, ChevronRight, 
   Building2, HardHat, Coffee, Paintbrush, UtensilsCrossed,
   Layers, Filter, X, Pencil, Globe, ChevronDown, Check, Lock,
-  Wallet, Tag, Loader2, Calendar, DollarSign, Download, BarChart3, TrendingUp, FileSpreadsheet, Star, Key, ShieldCheck, UserPlus, LogOut, User, Menu, Contact2, Shield
+  Wallet, Tag, Loader2, Calendar, DollarSign, Download, BarChart3, TrendingUp, FileSpreadsheet, Star, Key, ShieldCheck, UserPlus, LogOut, User, Menu, Contact2, Shield, Info
 } from 'lucide-react';
 import { CategoryType, Contact, Staff, ConstructionRecord, LaborClaim, WorkSite, ClaimBreakdown, Project, ProjectDocument, DocumentType } from './types';
 import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData, extractReceiptData, parseLaborClaimText, extractProjectDocument, extractExcelData, extractPDFData } from './geminiService';
@@ -1193,13 +1193,28 @@ const App: React.FC = () => {
     const cardInputRef = useRef<HTMLInputElement>(null);
     const attachmentInputRef = useRef<HTMLInputElement>(null);
 
+    // 거상 조직도 회사 정보 불러오기
+    const getGeosangCompanyInfo = () => {
+      if (!isGeosang) return null;
+      const saved = localStorage.getItem('geosang_company_info_v1');
+      return saved ? JSON.parse(saved) : null;
+    };
+
     const [formData, setFormData] = useState<Partial<Contact>>(() => {
       if (initialData) return { ...initialData };
+      
+      const geosangInfo = getGeosangCompanyInfo();
       return {
         id: Date.now().toString(), category: currentCategory,
-        brandName: isGeosang ? '거상컴퍼니' : '', industry: '',
+        brandName: isGeosang ? (geosangInfo?.brandName || '거상컴퍼니') : '', 
+        industry: geosangInfo?.industry || '',
+        address: geosangInfo?.address || '',
+        phone: geosangInfo?.phone || '',
+        phone2: geosangInfo?.phone2 || '',
+        email: geosangInfo?.email || '',
+        homepage: geosangInfo?.homepage || '',
+        bankAccount: geosangInfo?.bankAccount || '',
         subCategory: isOutsource ? '시공일당' : '',
-        bankAccount: '',
         staffList: [{ 
           id: 's' + Date.now(), 
           name: '', 
@@ -1220,6 +1235,7 @@ const App: React.FC = () => {
     const [newItemInput, setNewItemInput] = useState('');
     const [isOcrLoading, setIsOcrLoading] = useState(false);
     const [isCardOcrLoading, setIsCardOcrLoading] = useState(false);
+    const [isEditingCompanyInfo, setIsEditingCompanyInfo] = useState(false);
 
     const handleAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
@@ -1549,15 +1565,31 @@ const App: React.FC = () => {
             {isOutsource && renderItemManagement(outsourceTypes, 'OUTSOURCE')}
             {!isOutsource && (
               <div className="space-y-4 lg:space-y-6">
+                {isGeosang && (
+                  <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-xl border border-blue-200">
+                    <div className="flex items-center gap-2">
+                      <Info size={16} className="text-blue-600" />
+                      <span className="text-xs font-bold text-blue-900">회사 정보는 최초 등록 후 수정 아이콘으로만 변경 가능합니다</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingCompanyInfo(!isEditingCompanyInfo)}
+                      className={`p-2 rounded-lg transition-all ${isEditingCompanyInfo ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-100'}`}
+                      title={isEditingCompanyInfo ? '수정 완료' : '회사 정보 수정'}
+                    >
+                      {isEditingCompanyInfo ? <Check size={16} /> : <Pencil size={16} />}
+                    </button>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData({...formData, brandName: e.target.value})} disabled={isGeosang} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData({...formData, brandName: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
                   <div className="lg:col-span-2">{renderItemManagement(industries, 'INDUSTRY')}</div>
-                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData({...formData, phone2: e.target.value})} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData({...formData, homepage: e.target.value})} /></div>
-                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData({...formData, bankAccount: e.target.value})} placeholder="은행명 계좌번호 예금주" /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData({...formData, phone2: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData({...formData, homepage: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData({...formData, bankAccount: e.target.value})} placeholder="은행명 계좌번호 예금주" disabled={isGeosang && !isEditingCompanyInfo} /></div>
                 </div>
               </div>
             )}
@@ -2056,7 +2088,26 @@ const App: React.FC = () => {
       {isModalOpen && (
         <ContactFormModal 
           onClose={() => setIsModalOpen(false)} 
-          onSubmit={(c: Contact) => { if (editingContact) setContacts(prev => prev.map(old => old.id === c.id ? c : old)); else setContacts(prev => [...prev, c]); setIsModalOpen(false); }}
+          onSubmit={(c: Contact) => { 
+            // 거상 조직도일 때 회사 정보 저장
+            if (c.category === CategoryType.GEOSANG) {
+              const companyInfo = {
+                brandName: c.brandName,
+                industry: c.industry,
+                address: c.address,
+                phone: c.phone,
+                phone2: c.phone2,
+                email: c.email,
+                homepage: c.homepage,
+                bankAccount: c.bankAccount
+              };
+              localStorage.setItem('geosang_company_info_v1', JSON.stringify(companyInfo));
+            }
+            
+            if (editingContact) setContacts(prev => prev.map(old => old.id === c.id ? c : old)); 
+            else setContacts(prev => [...prev, c]); 
+            setIsModalOpen(false); 
+          }}
           currentCategory={activeCategory} initialData={editingContact} departments={departments} industries={industries} outsourceTypes={outsourceTypes}
           onAddDept={(dept: string) => setDepartments(prev => [...prev, dept])} onAddIndustry={(ind: string) => setIndustries(prev => [...prev, ind])} onAddOutsourceType={(type: string) => setOutsourceTypes(prev => [...prev, type])}
           onRenameItem={handleGlobalRenameItem} isAdmin={isAdmin}
