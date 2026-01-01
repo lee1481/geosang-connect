@@ -7,6 +7,93 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+// 자동 마이그레이션: 앱 시작 시 테이블 스키마 확인 및 생성
+app.use('*', async (c, next) => {
+  try {
+    // contacts 테이블의 컬럼 확인
+    const { results } = await c.env.DB.prepare('PRAGMA table_info(contacts)').all();
+    
+    // brandName 컬럼이 없으면 마이그레이션 필요
+    const hasBrandName = results.some((col: any) => col.name === 'brandName');
+    
+    if (!hasBrandName) {
+      console.log('🔄 Migrating contacts table to new schema...');
+      
+      // 백업
+      await c.env.DB.prepare('CREATE TABLE IF NOT EXISTS contacts_backup AS SELECT * FROM contacts').run();
+      
+      // 기존 테이블 삭제
+      await c.env.DB.prepare('DROP TABLE IF EXISTS contacts').run();
+      
+      // 새 스키마로 재생성
+      await c.env.DB.prepare(`
+        CREATE TABLE contacts (
+          id TEXT PRIMARY KEY,
+          category TEXT NOT NULL,
+          brandName TEXT,
+          subCategory TEXT,
+          industry TEXT,
+          address TEXT,
+          phone TEXT,
+          phone2 TEXT,
+          email TEXT,
+          homepage TEXT,
+          bankAccount TEXT,
+          licenseFile TEXT,
+          staffList TEXT,
+          attachments TEXT,
+          memo TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+      
+      // 인덱스 생성
+      await c.env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_contacts_category ON contacts(category)').run();
+      await c.env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_contacts_brandName ON contacts(brandName)').run();
+      await c.env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_contacts_subCategory ON contacts(subCategory)').run();
+      await c.env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_contacts_industry ON contacts(industry)').run();
+      
+      console.log('✅ Migration completed successfully!');
+    }
+  } catch (error: any) {
+    // 테이블이 없는 경우도 처리
+    if (error.message?.includes('no such table')) {
+      console.log('📦 Creating contacts table for the first time...');
+      await c.env.DB.prepare(`
+        CREATE TABLE contacts (
+          id TEXT PRIMARY KEY,
+          category TEXT NOT NULL,
+          brandName TEXT,
+          subCategory TEXT,
+          industry TEXT,
+          address TEXT,
+          phone TEXT,
+          phone2 TEXT,
+          email TEXT,
+          homepage TEXT,
+          bankAccount TEXT,
+          licenseFile TEXT,
+          staffList TEXT,
+          attachments TEXT,
+          memo TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+      
+      await c.env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_contacts_category ON contacts(category)').run();
+      await c.env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_contacts_brandName ON contacts(brandName)').run();
+      await c.env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_contacts_subCategory ON contacts(subCategory)').run();
+      await c.env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_contacts_industry ON contacts(industry)').run();
+      
+      console.log('✅ Table created successfully!');
+    }
+  }
+  
+  await next();
+});
+
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
