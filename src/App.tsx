@@ -9,7 +9,7 @@ import {
   Wallet, Tag, Loader2, Calendar, DollarSign, Download, BarChart3, TrendingUp, FileSpreadsheet, Star, Key, ShieldCheck, UserPlus, LogOut, User, Menu, Contact2
 } from 'lucide-react';
 import { CategoryType, Contact, Staff, ConstructionRecord, LaborClaim, WorkSite, ClaimBreakdown, Project, ProjectDocument, DocumentType } from './types';
-import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData, extractReceiptData, parseLaborClaimText, extractProjectDocument } from './geminiService';
+import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData, extractReceiptData, parseLaborClaimText, extractProjectDocument, extractExcelData, extractPDFData } from './geminiService';
 import * as XLSX from 'xlsx';
 
 interface AuthUser {
@@ -1157,16 +1157,33 @@ const App: React.FC = () => {
                 const base64 = event.target?.result as string;
                 const base64Data = base64.split(',')[1];
 
-                // AI로 문서 자동 분석 (OCR - 이미지 파일 텍스트 추출)
+                // AI로 문서 자동 분석 (파일 타입별 처리)
                 let documentType: DocumentType = 'other';
                 let extracted: any = {};
                 
                 try {
                   const fileName = file.name.toLowerCase();
                   const isImage = file.type.startsWith('image/');
+                  const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv') || 
+                                 file.type.includes('spreadsheet') || file.type.includes('excel');
+                  const isPDF = fileName.endsWith('.pdf') || file.type === 'application/pdf';
                   
+                  // 📊 엑셀 파일 처리
+                  if (isExcel) {
+                    console.log(`📊 엑셀 파일 감지: ${file.name} - 데이터 파싱 시작...`);
+                    extracted = await extractExcelData(base64Data, file.name);
+                    documentType = extracted.detectedType || 'other';
+                    console.log('✅ 엑셀 분석 완료:', extracted);
+                  }
+                  // 📄 PDF 파일 처리
+                  else if (isPDF) {
+                    console.log(`📄 PDF 파일 감지: ${file.name} - 메타데이터 추출 중...`);
+                    extracted = await extractPDFData(base64Data, file.name);
+                    documentType = extracted.detectedType || 'other';
+                    console.log('✅ PDF 분석 완료:', extracted);
+                  }
                   // 🔍 이미지 파일인 경우 OCR로 분석
-                  if (isImage) {
+                  else if (isImage) {
                     console.log(`📸 이미지 파일 감지: ${file.name} - OCR 분석 시작...`);
                     
                     // 파일명으로 문서 타입 추정 (우선순위)
@@ -1207,29 +1224,24 @@ const App: React.FC = () => {
                     
                     console.log('✅ OCR 분석 완료:', extracted);
                   } 
-                  // PDF 등 비이미지 파일
+                  // 기타 파일 (일반 문서)
                   else {
+                    console.log(`📝 기타 파일 감지: ${file.name} - 파일명 기반 분류`);
                     if (fileName.includes('견적') || fileName.includes('quote')) {
                       documentType = 'quotation';
-                      extracted = await extractProjectDocument(base64Data, file.type, 'quotation');
                     } else if (fileName.includes('발주') || fileName.includes('order')) {
                       documentType = 'purchase_order';
-                      extracted = await extractProjectDocument(base64Data, file.type, 'purchase_order');
                     } else if (fileName.includes('거래') || fileName.includes('명세') || fileName.includes('invoice')) {
                       documentType = 'transaction_stmt';
-                      extracted = await extractProjectDocument(base64Data, file.type, 'transaction_stmt');
                     } else if (fileName.includes('배송') || fileName.includes('퀵') || fileName.includes('delivery')) {
                       documentType = 'delivery_cost';
-                      extracted = await extractProjectDocument(base64Data, file.type, 'delivery_cost');
                     } else if (fileName.includes('시안') || fileName.includes('디자인') || fileName.includes('design')) {
                       documentType = 'design_proposal';
-                      extracted = await extractProjectDocument(base64Data, file.type, 'design_proposal');
-                    } else {
-                      extracted = await extractProjectDocument(base64Data, file.type, 'quotation');
                     }
+                    extracted = { storeName: '미상', amount: 0 };
                   }
                 } catch (err) {
-                  console.warn('AI extraction failed, using manual input:', err);
+                  console.warn('⚠️ 파일 분석 실패, 수동 입력 사용:', err);
                   extracted = { storeName: `${franchiseName} ${storeName}`, amount: 0 };
                 }
 

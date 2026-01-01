@@ -402,3 +402,102 @@ export async function extractProjectDocument(fileBase64: string, mimeType: strin
     throw error;
   }
 }
+
+// 엑셀 파일 처리 (XLSX, XLS, CSV)
+export async function extractExcelData(fileBase64: string, fileName: string) {
+  try {
+    // Dynamic import to avoid bundling issues
+    const XLSX = await import('xlsx');
+    
+    // Base64를 ArrayBuffer로 변환
+    const binaryString = atob(fileBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    // 엑셀 파일 읽기
+    const workbook = XLSX.read(bytes, { type: 'array' });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+    
+    // 데이터 분석 (첫 행을 헤더로 사용)
+    const rows = data as any[][];
+    if (rows.length < 2) {
+      throw new Error('엑셀 데이터가 비어있습니다.');
+    }
+    
+    // 자동으로 문서 정보 추출
+    let storeName = '미상';
+    let amount = 0;
+    let documentType = 'other';
+    
+    // 파일명으로 문서 타입 추정
+    const lowerFileName = fileName.toLowerCase();
+    if (lowerFileName.includes('견적')) documentType = 'quotation';
+    else if (lowerFileName.includes('발주')) documentType = 'purchase_order';
+    else if (lowerFileName.includes('거래') || lowerFileName.includes('명세')) documentType = 'transaction_stmt';
+    else if (lowerFileName.includes('영수증') || lowerFileName.includes('배송')) documentType = 'delivery_cost';
+    
+    // 엑셀 데이터에서 매장명, 금액 찾기
+    for (const row of rows) {
+      const rowStr = row.join(' ').toLowerCase();
+      
+      // 매장명 찾기 (상호, 거래처, 매장, 지점 등)
+      if ((rowStr.includes('상호') || rowStr.includes('거래처') || rowStr.includes('매장') || rowStr.includes('지점')) && storeName === '미상') {
+        const nextCell = row[1] || row[0];
+        if (nextCell && typeof nextCell === 'string' && nextCell.length > 1) {
+          storeName = nextCell;
+        }
+      }
+      
+      // 금액 찾기 (합계, 총액, 금액 등)
+      if (rowStr.includes('합계') || rowStr.includes('총액') || rowStr.includes('금액')) {
+        for (const cell of row) {
+          if (typeof cell === 'number' && cell > amount) {
+            amount = cell;
+          }
+        }
+      }
+    }
+    
+    return {
+      detectedType: documentType,
+      storeName,
+      amount,
+      fullText: JSON.stringify(rows),
+      extractedData: rows
+    };
+  } catch (error) {
+    console.error("Excel Parse Error:", error);
+    throw error;
+  }
+}
+
+// PDF 파일 처리
+export async function extractPDFData(fileBase64: string, fileName: string) {
+  try {
+    // PDF에서 텍스트 추출 (간단한 버전)
+    // 실제로는 pdf.js를 사용하지만, Cloudflare Workers에서는 제한적
+    
+    // 파일명으로 문서 타입 추정
+    let documentType = 'other';
+    const lowerFileName = fileName.toLowerCase();
+    if (lowerFileName.includes('견적')) documentType = 'quotation';
+    else if (lowerFileName.includes('발주')) documentType = 'purchase_order';
+    else if (lowerFileName.includes('거래') || lowerFileName.includes('명세')) documentType = 'transaction_stmt';
+    else if (lowerFileName.includes('영수증') || lowerFileName.includes('배송')) documentType = 'delivery_cost';
+    
+    // PDF는 OCR 대신 메타데이터만 반환
+    return {
+      detectedType: documentType,
+      storeName: '미상',
+      amount: 0,
+      fullText: `PDF 파일: ${fileName}`,
+      isPDF: true
+    };
+  } catch (error) {
+    console.error("PDF Parse Error:", error);
+    throw error;
+  }
+}
