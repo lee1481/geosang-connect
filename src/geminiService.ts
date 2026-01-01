@@ -245,16 +245,45 @@ export async function extractBusinessCardData(fileBase64: string, mimeType: stri
   const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
-    이 이미지는 명함입니다. 모든 텍스트를 정확하게 읽고 다음을 추출하세요:
-    - name: 성명 (필수)
-    - position: 직함/직위 (없으면 "")
-    - phone: 개인 휴대폰 번호 (없으면 "")
-    - companyPhone: 회사 대표번호 (없으면 "")
-    - email: 이메일 (없으면 "")
-    - homepage: 홈페이지 URL (없으면 "")
-    
-    정보가 없는 필드는 빈 문자열("")을 사용하세요.
-  `;
+이 이미지는 명함입니다. 모든 텍스트를 정확하게 읽고 간판/인테리어 업계에 특화된 정보를 추출하세요:
+
+[기본 정보]
+- name: 성명 (한글 또는 영문, 필수)
+- position: 직함/직위 (예: 대표이사, 팀장, 과장, 실장, 부장 등)
+- department: 소속 부서 (예: 영업팀, 디자인팀, 시공팀 등)
+
+[회사 정보]
+- companyName: 회사명/상호 (정확한 회사명 추출)
+- businessType: 업종 구분 (간판제작, 인테리어, 간판시공, LED제작, 채널사인, 디자인, 제작설치, 종합광고 중 하나)
+
+[연락처 정보]
+- phone: 개인 휴대폰 번호 (010-XXXX-XXXX 형식, 하이픈 포함)
+- companyPhone: 회사 대표번호 (02-XXX-XXXX 형식, 지역번호 포함)
+- fax: 팩스 번호 (있으면 추출)
+- email: 이메일 주소
+
+[주소 정보]
+- address: 회사 주소 (전체 주소, 도로명 주소 우선)
+- officeAddress: 공장/작업장 주소 (별도 기재된 경우만)
+
+[온라인 정보]
+- homepage: 홈페이지 URL (http:// 또는 https:// 포함)
+- instagram: 인스타그램 계정 (@ 포함)
+- blog: 블로그 주소 (네이버 블로그, 티스토리 등)
+- kakaoId: 카카오톡 ID (있으면 추출)
+
+[추출 규칙]
+1. 전화번호는 반드시 하이픈(-) 포함 형식으로 정리
+2. 휴대폰(010)과 회사번호(지역번호)를 구분
+3. 이메일은 정확한 형식으로 추출 (user@domain.com)
+4. URL은 http:// 또는 https:// 포함
+5. 주소는 도로명 주소 우선, 없으면 지번 주소
+6. 정보가 없는 필드는 빈 문자열("")
+7. businessType은 명함의 회사 설명이나 로고에서 유추
+
+[신뢰도]
+- confidence: 전체 인식 신뢰도 (high/medium/low)
+`;
 
   try {
     const response = await ai.models.generateContent({
@@ -272,21 +301,83 @@ export async function extractBusinessCardData(fileBase64: string, mimeType: stri
           properties: {
             name: { type: Type.STRING },
             position: { type: Type.STRING },
+            department: { type: Type.STRING },
+            companyName: { type: Type.STRING },
+            businessType: { type: Type.STRING },
             phone: { type: Type.STRING },
             companyPhone: { type: Type.STRING },
+            fax: { type: Type.STRING },
             email: { type: Type.STRING },
+            address: { type: Type.STRING },
+            officeAddress: { type: Type.STRING },
             homepage: { type: Type.STRING },
+            instagram: { type: Type.STRING },
+            blog: { type: Type.STRING },
+            kakaoId: { type: Type.STRING },
+            confidence: { type: Type.STRING },
           },
-          required: ["name"]
+          required: ["name", "companyName"]
         }
       }
     });
 
-    return JSON.parse(response.text);
+    const result = JSON.parse(response.text);
+    
+    // 전화번호 자동 포맷팅
+    if (result.phone && !result.phone.includes('-')) {
+      result.phone = formatPhoneNumber(result.phone);
+    }
+    if (result.companyPhone && !result.companyPhone.includes('-')) {
+      result.companyPhone = formatPhoneNumber(result.companyPhone);
+    }
+    if (result.fax && !result.fax.includes('-')) {
+      result.fax = formatPhoneNumber(result.fax);
+    }
+    
+    console.log('🎴 명함 OCR 결과:', {
+      name: result.name,
+      company: result.companyName,
+      type: result.businessType,
+      phone: result.phone,
+      confidence: result.confidence
+    });
+    
+    return result;
   } catch (error) {
     console.error("Business Card OCR Error:", error);
     throw error;
   }
+}
+
+// 전화번호 자동 포맷팅 함수
+function formatPhoneNumber(phone: string): string {
+  // 숫자만 추출
+  const numbers = phone.replace(/[^0-9]/g, '');
+  
+  // 휴대폰 번호 (010-XXXX-XXXX)
+  if (numbers.startsWith('010') && numbers.length === 11) {
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
+  }
+  
+  // 서울 02 (02-XXX-XXXX 또는 02-XXXX-XXXX)
+  if (numbers.startsWith('02')) {
+    if (numbers.length === 9) {
+      return `${numbers.slice(0, 2)}-${numbers.slice(2, 5)}-${numbers.slice(5)}`;
+    } else if (numbers.length === 10) {
+      return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+    }
+  }
+  
+  // 지역번호 (031, 032 등) (0XX-XXX-XXXX 또는 0XX-XXXX-XXXX)
+  if (numbers.startsWith('0') && numbers.length === 10) {
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6)}`;
+  }
+  if (numbers.startsWith('0') && numbers.length === 11) {
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
+  }
+  
+  // 기타 (원본 반환)
+  return phone;
 }
 
 // 프로젝트 문서 자동 분석 (매장명, 금액 추출)

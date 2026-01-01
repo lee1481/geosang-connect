@@ -1376,6 +1376,16 @@ const App: React.FC = () => {
           try {
             const extracted = await extractBusinessCardData(base64, file.type);
             
+            console.log('🎴 명함 OCR 추출 완료:', {
+              name: extracted.name,
+              company: extracted.companyName,
+              type: extracted.businessType,
+              phone: extracted.phone,
+              email: extracted.email,
+              address: extracted.address,
+              confidence: extracted.confidence
+            });
+            
             setFormData(prev => {
               const newList = [...(prev.staffList || [])];
               let targetIdx = newList.length - 1;
@@ -1396,24 +1406,50 @@ const App: React.FC = () => {
                 targetIdx = newList.length - 1;
               }
 
+              // 스태프 정보 업데이트
               newList[targetIdx] = {
                 ...newList[targetIdx],
                 name: extracted.name || newList[targetIdx].name,
                 position: extracted.position || newList[targetIdx].position,
                 phone: extracted.phone || newList[targetIdx].phone,
                 email: extracted.email || newList[targetIdx].email,
+                department: extracted.department || newList[targetIdx].department,
+                region: extracted.address || newList[targetIdx].region,
+                features: [
+                  extracted.businessType ? `업종: ${extracted.businessType}` : '',
+                  extracted.instagram ? `IG: ${extracted.instagram}` : '',
+                  extracted.kakaoId ? `카톡: ${extracted.kakaoId}` : '',
+                  extracted.confidence ? `신뢰도: ${extracted.confidence}` : ''
+                ].filter(Boolean).join(' / ') || newList[targetIdx].features
               };
 
+              // 회사 정보 업데이트
               return {
                 ...prev,
+                brandName: extracted.companyName || prev.brandName,
                 phone: extracted.companyPhone || prev.phone,
+                fax: extracted.fax || prev.fax,
                 homepage: extracted.homepage || prev.homepage,
+                address: extracted.address || prev.address,
                 staffList: newList
               };
             });
+            
+            // OCR 결과 알림
+            alert(`✅ 명함 인식 완료!\n\n` +
+              `📛 성명: ${extracted.name}\n` +
+              `🏢 회사: ${extracted.companyName || '미상'}\n` +
+              `💼 직위: ${extracted.position || '미상'}\n` +
+              `📞 휴대폰: ${extracted.phone || '미상'}\n` +
+              `☎️ 회사전화: ${extracted.companyPhone || '미상'}\n` +
+              `📧 이메일: ${extracted.email || '미상'}\n` +
+              `🏠 주소: ${extracted.address || '미상'}\n` +
+              `🎯 업종: ${extracted.businessType || '미상'}\n` +
+              `📊 신뢰도: ${extracted.confidence || 'medium'}`
+            );
           } catch (err) {
             console.error("Card OCR Failed", err);
-            alert("명단 분석에 실패했습니다.");
+            alert("❌ 명함 분석에 실패했습니다.\n이미지가 명확한지 확인해주세요.");
           } finally {
             setIsCardOcrLoading(false);
             if (cardInputRef.current) cardInputRef.current.value = '';
