@@ -242,22 +242,43 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
     if (uploadInputRef.current) uploadInputRef.current.value = '';
   };
 
-  // 계정 데이터 다운로드 (JSON 파일)
+  // 계정 데이터 다운로드 (CSV 파일)
   const handleDownloadAccounts = () => {
     if (entries.length === 0) {
       alert('❌ 다운로드할 계정 정보가 없습니다.');
       return;
     }
 
-    const dataStr = JSON.stringify(entries, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    // CSV 헤더
+    const headers = ['계정명칭', '웹사이트주소', '아이디', '비밀번호', '2FA복구코드', '메모', '생성일시', '수정일시'];
+    
+    // CSV 데이터 생성
+    const csvRows = [
+      headers.join(','), // 헤더 행
+      ...entries.map(entry => [
+        `"${entry.accountName.replace(/"/g, '""')}"`,
+        `"${entry.websiteUrl.replace(/"/g, '""')}"`,
+        `"${entry.username.replace(/"/g, '""')}"`,
+        `"${entry.password.replace(/"/g, '""')}"`,
+        `"${(entry.twoFactorCode || '').replace(/"/g, '""')}"`,
+        `"${(entry.memo || '').replace(/"/g, '""')}"`,
+        `"${new Date(entry.createdAt).toLocaleString('ko-KR')}"`,
+        `"${new Date(entry.updatedAt).toLocaleString('ko-KR')}"`,
+      ].join(','))
+    ];
+
+    // BOM 추가 (한글 깨짐 방지)
+    const BOM = '\uFEFF';
+    const csvContent = BOM + csvRows.join('\n');
+    
+    const dataBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `계정목록_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `계정목록_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    alert(`✅ ${entries.length}개의 계정 정보를 다운로드했습니다.`);
+    alert(`✅ ${entries.length}개의 계정 정보를 CSV 파일로 다운로드했습니다.`);
   };
 
   return (
