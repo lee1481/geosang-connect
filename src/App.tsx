@@ -1206,32 +1206,57 @@ const App: React.FC = () => {
   const ContactFormModal = ({ onClose, onSubmit, currentCategory, initialData, departments, industries, outsourceTypes, onAddDept, onAddIndustry, onAddOutsourceType, onRenameItem, isAdmin }: any) => {
     const isGeosang = (initialData?.category || currentCategory) === CategoryType.GEOSANG;
     const isOutsource = (initialData?.category || currentCategory) === CategoryType.OUTSOURCE;
+    const isPurchase = (initialData?.category || currentCategory) === CategoryType.PURCHASE;
+    const isFranchiseHQ = (initialData?.category || currentCategory) === CategoryType.FRANCHISE_HQ;
+    const isFranchiseBR = (initialData?.category || currentCategory) === CategoryType.FRANCHISE_BR;
+    const isInterior = (initialData?.category || currentCategory) === CategoryType.INTERIOR;
+    const isSales = (initialData?.category || currentCategory) === CategoryType.SALES;
+    const isOthers = (initialData?.category || currentCategory) === CategoryType.OTHERS;
+    
+    // 파트너 네트워크 카테고리 (회사 정보 자동 저장 대상)
+    const isPartnerNetwork = isPurchase || isFranchiseHQ || isFranchiseBR || isInterior || isSales || isOthers;
+    
     const showDepartmentFeature = !isOutsource;
     const licenseInputRef = useRef<HTMLInputElement>(null);
     const cardInputRef = useRef<HTMLInputElement>(null);
     const attachmentInputRef = useRef<HTMLInputElement>(null);
 
-    // 거상 조직도 회사 정보 불러오기
-    const getGeosangCompanyInfo = () => {
-      if (!isGeosang) return null;
-      const saved = localStorage.getItem('geosang_company_info_v1');
+    // 카테고리별 회사 정보 localStorage 키
+    const getCompanyInfoKey = (category: CategoryType) => {
+      const keyMap: Record<string, string> = {
+        [CategoryType.GEOSANG]: 'geosang_company_info_v1',
+        [CategoryType.PURCHASE]: 'purchase_company_info_v1',
+        [CategoryType.FRANCHISE_HQ]: 'franchise_hq_company_info_v1',
+        [CategoryType.FRANCHISE_BR]: 'franchise_br_company_info_v1',
+        [CategoryType.INTERIOR]: 'interior_company_info_v1',
+        [CategoryType.SALES]: 'sales_company_info_v1',
+        [CategoryType.OTHERS]: 'others_company_info_v1'
+      };
+      return keyMap[category];
+    };
+
+    // 회사 정보 불러오기
+    const getCompanyInfo = () => {
+      if (!isGeosang && !isPartnerNetwork) return null;
+      const key = getCompanyInfoKey(initialData?.category || currentCategory);
+      const saved = localStorage.getItem(key);
       return saved ? JSON.parse(saved) : null;
     };
 
     const [formData, setFormData] = useState<Partial<Contact>>(() => {
       if (initialData) return { ...initialData };
       
-      const geosangInfo = getGeosangCompanyInfo();
+      const companyInfo = getCompanyInfo();
       return {
         id: Date.now().toString(), category: currentCategory,
-        brandName: isGeosang ? (geosangInfo?.brandName || '거상컴퍼니') : '', 
-        industry: geosangInfo?.industry || '',
-        address: geosangInfo?.address || '',
-        phone: geosangInfo?.phone || '',
-        phone2: geosangInfo?.phone2 || '',
-        email: geosangInfo?.email || '',
-        homepage: geosangInfo?.homepage || '',
-        bankAccount: geosangInfo?.bankAccount || '',
+        brandName: isGeosang ? (companyInfo?.brandName || '거상컴퍼니') : (companyInfo?.brandName || ''), 
+        industry: companyInfo?.industry || '',
+        address: companyInfo?.address || '',
+        phone: companyInfo?.phone || '',
+        phone2: companyInfo?.phone2 || '',
+        email: companyInfo?.email || '',
+        homepage: companyInfo?.homepage || '',
+        bankAccount: companyInfo?.bankAccount || '',
         subCategory: isOutsource ? '시공일당' : '',
         staffList: [{ 
           id: 's' + Date.now(), 
@@ -1591,7 +1616,7 @@ const App: React.FC = () => {
             {isOutsource && renderItemManagement(outsourceTypes, 'OUTSOURCE')}
             {!isOutsource && (
               <div className="space-y-4 lg:space-y-6">
-                {isGeosang && (
+                {(isGeosang || isPartnerNetwork) && (
                   <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-xl border border-blue-200">
                     <div className="flex items-center gap-2">
                       <Info size={16} className="text-blue-600" />
@@ -1608,14 +1633,14 @@ const App: React.FC = () => {
                   </div>
                 )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData({...formData, brandName: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData({...formData, brandName: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
                   <div className="lg:col-span-2">{renderItemManagement(industries, 'INDUSTRY')}</div>
-                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData({...formData, phone2: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData({...formData, homepage: e.target.value})} disabled={isGeosang && !isEditingCompanyInfo} /></div>
-                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData({...formData, bankAccount: e.target.value})} placeholder="은행명 계좌번호 예금주" disabled={isGeosang && !isEditingCompanyInfo} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData({...formData, phone2: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData({...formData, homepage: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData({...formData, bankAccount: e.target.value})} placeholder="은행명 계좌번호 예금주" disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
                 </div>
               </div>
             )}
@@ -2116,8 +2141,18 @@ const App: React.FC = () => {
           onClose={() => setIsModalOpen(false)} 
           onSubmit={async (c: Contact) => { 
             try {
-              // 거상 조직도일 때 회사 정보 localStorage에 저장
-              if (c.category === CategoryType.GEOSANG) {
+              // 거상 조직도 및 파트너 네트워크 카테고리일 때 회사 정보 localStorage에 저장
+              const partnerCategories = [
+                CategoryType.GEOSANG,
+                CategoryType.PURCHASE,
+                CategoryType.FRANCHISE_HQ,
+                CategoryType.FRANCHISE_BR,
+                CategoryType.INTERIOR,
+                CategoryType.SALES,
+                CategoryType.OTHERS
+              ];
+              
+              if (partnerCategories.includes(c.category)) {
                 const companyInfo = {
                   brandName: c.brandName,
                   industry: c.industry,
@@ -2128,7 +2163,22 @@ const App: React.FC = () => {
                   homepage: c.homepage,
                   bankAccount: c.bankAccount
                 };
-                localStorage.setItem('geosang_company_info_v1', JSON.stringify(companyInfo));
+                
+                // 카테고리별 localStorage 키
+                const keyMap: Record<string, string> = {
+                  [CategoryType.GEOSANG]: 'geosang_company_info_v1',
+                  [CategoryType.PURCHASE]: 'purchase_company_info_v1',
+                  [CategoryType.FRANCHISE_HQ]: 'franchise_hq_company_info_v1',
+                  [CategoryType.FRANCHISE_BR]: 'franchise_br_company_info_v1',
+                  [CategoryType.INTERIOR]: 'interior_company_info_v1',
+                  [CategoryType.SALES]: 'sales_company_info_v1',
+                  [CategoryType.OTHERS]: 'others_company_info_v1'
+                };
+                
+                const key = keyMap[c.category];
+                if (key) {
+                  localStorage.setItem(key, JSON.stringify(companyInfo));
+                }
               }
               
               if (editingContact) {
