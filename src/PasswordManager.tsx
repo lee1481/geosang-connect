@@ -444,94 +444,50 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
                   entries.map((entry) => (
                     <div
                       key={entry.id}
-                      className="bg-slate-700 rounded-xl p-5 border border-slate-600 hover:border-cyan-500 transition-colors"
+                      className="bg-slate-700/50 rounded-lg p-4 border border-slate-600/50 hover:border-cyan-500/50 transition-colors relative"
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-lg font-bold text-cyan-400">{entry.accountName}</h3>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleEditEntry(entry)}
-                            className="text-green-400 hover:text-green-300 transition-colors"
-                            title="수정"
-                          >
-                            <Edit2 size={20} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteEntry(entry.id)}
-                            className="text-red-400 hover:text-red-300 transition-colors"
-                            title="삭제"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
+                      {/* 제목 및 삭제 버튼 */}
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-base font-bold text-cyan-400">{entry.accountName}</h3>
+                        <button
+                          onClick={() => handleDeleteEntry(entry.id)}
+                          className="text-slate-400 hover:text-red-400 transition-colors"
+                          title="삭제"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
 
                       {/* 아이디 */}
-                      <div className="mb-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-slate-400 text-sm font-semibold">아이디:</span>
-                          <button
-                            onClick={() => copyToClipboard(entry.username, '아이디')}
-                            className="text-slate-400 hover:text-cyan-400 transition-colors"
-                          >
-                            <Copy size={16} />
-                          </button>
+                      <div className="mb-2 flex items-center justify-between bg-slate-800/50 rounded px-3 py-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className="text-slate-400 text-sm font-semibold whitespace-nowrap">아이디:</span>
+                          <span className="text-white text-sm truncate">{entry.username}</span>
                         </div>
-                        <div className="text-white bg-slate-800 px-4 py-2 rounded-lg">
-                          {entry.username}
-                        </div>
+                        <button
+                          onClick={() => handleEditEntry(entry)}
+                          className="text-slate-400 hover:text-cyan-400 transition-colors ml-2"
+                          title="수정"
+                        >
+                          <Edit2 size={16} />
+                        </button>
                       </div>
 
                       {/* 비밀번호 */}
-                      <div className="mb-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-slate-400 text-sm font-semibold">비밀번호:</span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => copyToClipboard(entry.password, '비밀번호')}
-                              className="text-slate-400 hover:text-cyan-400 transition-colors"
-                            >
-                              <Copy size={16} />
-                            </button>
-                            <button
-                              onClick={() => togglePasswordVisibility(entry.id)}
-                              className="text-slate-400 hover:text-cyan-400 transition-colors"
-                            >
-                              {showPassword[entry.id] ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
+                      <div className="flex items-center justify-between bg-slate-800/50 rounded px-3 py-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className="text-slate-400 text-sm font-semibold whitespace-nowrap">비밀번호:</span>
+                          <span className="text-white text-sm font-mono truncate">
+                            {showPassword[entry.id] ? entry.password : '•'.repeat(Math.min(entry.password.length, 12))}
+                          </span>
                         </div>
-                        <div className="text-white bg-slate-800 px-4 py-2 rounded-lg font-mono">
-                          {showPassword[entry.id] ? entry.password : '•'.repeat(entry.password.length)}
-                        </div>
-                      </div>
-
-                      {/* 웹사이트 URL */}
-                      {entry.websiteUrl && (
-                        <div className="text-sm text-slate-400">
-                          🌐 <a href={entry.websiteUrl} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 underline">
-                            {entry.websiteUrl}
-                          </a>
-                        </div>
-                      )}
-
-                      {/* 2FA 코드 */}
-                      {entry.twoFactorCode && (
-                        <div className="mt-3 text-sm text-slate-400">
-                          <strong>2FA:</strong> {entry.twoFactorCode}
-                        </div>
-                      )}
-
-                      {/* 메모 */}
-                      {entry.memo && (
-                        <div className="mt-3 text-sm text-slate-400">
-                          <strong>메모:</strong> {entry.memo}
-                        </div>
-                      )}
-
-                      {/* 날짜 */}
-                      <div className="mt-3 text-xs text-slate-500">
-                        생성일: {new Date(entry.createdAt).toLocaleString('ko-KR')}
+                        <button
+                          onClick={() => togglePasswordVisibility(entry.id)}
+                          className="text-slate-400 hover:text-cyan-400 transition-colors ml-2"
+                          title={showPassword[entry.id] ? '숨기기' : '보기'}
+                        >
+                          {showPassword[entry.id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
                       </div>
                     </div>
                   ))
