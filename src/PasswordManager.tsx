@@ -217,7 +217,7 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 lg:p-8">
       {/* 헤더 */}
-      <div className="max-w-7xl mx-auto mb-8">
+      <div className="max-w-[1920px] mx-auto mb-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl lg:text-4xl font-black text-white mb-3">
             🔐 아이디/비밀번호 저장 앱
@@ -227,9 +227,9 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* 좌측: 계정 정보 입력 */}
-          <div className="lg:col-span-1">
+          <div className="w-full lg:w-[400px] lg:flex-shrink-0 lg:sticky lg:top-8">
             <div className="bg-slate-800 rounded-2xl p-6 shadow-2xl border border-slate-700">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2">
@@ -417,23 +417,23 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
           </div>
 
           {/* 우측: 저장된 계정 목록 */}
-          <div className="lg:col-span-2">
+          <div className="w-full lg:flex-1 lg:min-w-0">
             <div className="bg-slate-800 rounded-2xl p-6 shadow-2xl border border-slate-700">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-blue-400 flex items-center gap-2">
                   <FileText size={24} />
-                  저장된 계정 목록
+                  저장된 계정 목록 ({entries.length})
                 </h2>
                 <button
                   onClick={handleSavePDF}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors flex items-center gap-2 text-sm"
                 >
                   <Download size={18} />
                   PDF 저장
                 </button>
               </div>
 
-              <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+              <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
                 {entries.length === 0 ? (
                   <div className="text-center py-12 text-slate-400">
                     <Shield size={48} className="mx-auto mb-4 opacity-50" />
