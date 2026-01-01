@@ -86,8 +86,17 @@ const App: React.FC = () => {
   const [loginId, setLoginId] = useState('');
   const [loginPw, setLoginPw] = useState('');
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isAdminSettingsModalOpen, setIsAdminSettingsModalOpen] = useState(false);
   const [authError, setAuthError] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // 관리자 계정 설정 상태
+  const [adminSettingsForm, setAdminSettingsForm] = useState({
+    currentPassword: '',
+    newId: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
 
   const [contacts, setContacts] = useState<Contact[]>(() => {
     const saved = localStorage.getItem('geosang_contacts_v8');
@@ -266,6 +275,62 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('geosang_logged_in_user_obj_v2');
+  };
+
+  // 관리자 계정 설정 변경
+  const handleAdminSettings = () => {
+    const { currentPassword, newId, newPassword, confirmPassword } = adminSettingsForm;
+    
+    // 현재 비밀번호 확인
+    const adminUser = authorizedUsers.find(u => u.id === 'admin');
+    if (!adminUser || adminUser.password !== currentPassword) {
+      alert('❌ 현재 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    
+    // 새 비밀번호 확인
+    if (newPassword && newPassword !== confirmPassword) {
+      alert('❌ 새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    
+    // 새 아이디가 기존 사용자와 중복되는지 확인 (admin 제외)
+    if (newId && newId !== 'admin' && authorizedUsers.some(u => u.username === newId && u.id !== 'admin')) {
+      alert('❌ 이미 존재하는 아이디입니다.');
+      return;
+    }
+    
+    // 관리자 계정 업데이트
+    const updatedUsers = authorizedUsers.map(u => {
+      if (u.id === 'admin') {
+        return {
+          ...u,
+          username: newId || u.username,
+          password: newPassword || u.password
+        };
+      }
+      return u;
+    });
+    
+    setAuthorizedUsers(updatedUsers);
+    
+    // 현재 로그인한 사용자도 업데이트
+    if (currentUser?.id === 'admin') {
+      const updatedAdmin = updatedUsers.find(u => u.id === 'admin');
+      if (updatedAdmin) {
+        setCurrentUser(updatedAdmin);
+        localStorage.setItem('geosang_logged_in_user_obj_v2', JSON.stringify(updatedAdmin));
+      }
+    }
+    
+    alert('✅ 관리자 계정이 성공적으로 변경되었습니다!');
+    setIsAdminSettingsModalOpen(false);
+    setAdminSettingsForm({
+      currentPassword: '',
+      newId: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
   };
 
   const handleAddAuthUser = (name: string, username: string, pw: string) => {
@@ -1696,9 +1761,14 @@ const App: React.FC = () => {
 
         <div className="p-4 border-t border-white/5 space-y-2">
           {isAdmin && (
-            <button onClick={() => { setIsAdminModalOpen(true); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-blue-400 hover:bg-blue-500/10 transition-all text-xs font-bold border border-blue-500/20">
-              <ShieldCheck size={16} /> 권한 관리
-            </button>
+            <>
+              <button onClick={() => { setIsAdminModalOpen(true); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-blue-400 hover:bg-blue-500/10 transition-all text-xs font-bold border border-blue-500/20">
+                <ShieldCheck size={16} /> 권한 관리
+              </button>
+              <button onClick={() => { setIsAdminSettingsModalOpen(true); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-all text-xs font-bold border border-emerald-500/20">
+                <Settings size={16} /> 관리자 계정 설정
+              </button>
+            </>
           )}
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-all text-xs font-bold">
             <LogOut size={16} /> 로그아웃
@@ -1743,9 +1813,14 @@ const App: React.FC = () => {
 
         <div className="p-4 border-t border-white/5 space-y-2">
           {isAdmin && (
-            <button onClick={() => { setIsAdminModalOpen(true); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-blue-400 hover:bg-blue-500/10 transition-all text-xs font-bold border border-blue-500/20">
-              <ShieldCheck size={16} /> 권한 관리
-            </button>
+            <>
+              <button onClick={() => { setIsAdminModalOpen(true); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-blue-400 hover:bg-blue-500/10 transition-all text-xs font-bold border border-blue-500/20">
+                <ShieldCheck size={16} /> 권한 관리
+              </button>
+              <button onClick={() => { setIsAdminSettingsModalOpen(true); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-all text-xs font-bold border border-emerald-500/20">
+                <Settings size={16} /> 관리자 계정 설정
+              </button>
+            </>
           )}
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-all text-xs font-bold">
             <LogOut size={16} /> 로그아웃
@@ -1896,6 +1971,88 @@ const App: React.FC = () => {
       </main>
 
       {isAdminModalOpen && <AdminModal users={authorizedUsers} onClose={() => setIsAdminModalOpen(false)} onAdd={handleAddAuthUser} onRevoke={handleRevokeAccess} />}
+      
+      {/* 관리자 계정 설정 모달 */}
+      {isAdminSettingsModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative">
+            <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">관리자 계정 설정</h2>
+            
+            <div className="space-y-4">
+              {/* 현재 비밀번호 */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">현재 비밀번호</label>
+                <input
+                  type="password"
+                  value={adminSettingsForm.currentPassword}
+                  onChange={(e) => setAdminSettingsForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-0 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="현재 비밀번호를 입력하세요"
+                />
+              </div>
+              
+              {/* 새 아이디 */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">새 아이디</label>
+                <input
+                  type="text"
+                  value={adminSettingsForm.newId}
+                  onChange={(e) => setAdminSettingsForm(prev => ({ ...prev, newId: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-0 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="admin"
+                />
+              </div>
+              
+              {/* 새 비밀번호 */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">새 비밀번호</label>
+                <input
+                  type="password"
+                  value={adminSettingsForm.newPassword}
+                  onChange={(e) => setAdminSettingsForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-0 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="새 비밀번호를 입력하세요"
+                />
+              </div>
+              
+              {/* 새 비밀번호 확인 */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">새 비밀번호 확인</label>
+                <input
+                  type="password"
+                  value={adminSettingsForm.confirmPassword}
+                  onChange={(e) => setAdminSettingsForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border-0 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="새 비밀번호를 다시 입력하세요"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setIsAdminSettingsModalOpen(false);
+                  setAdminSettingsForm({
+                    currentPassword: '',
+                    newId: '',
+                    newPassword: '',
+                    confirmPassword: ''
+                  });
+                }}
+                className="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-full font-bold transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleAdminSettings}
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-full font-bold transition-colors"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {isModalOpen && (
         <ContactFormModal 
           onClose={() => setIsModalOpen(false)} 
