@@ -377,34 +377,6 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
                   <FileText size={24} />
                   저장된 계정 목록 ({entries.length})
                 </h2>
-                <div className="flex items-center gap-2">
-                  {/* 업로드 버튼 */}
-                  <button
-                    onClick={() => uploadInputRef.current?.click()}
-                    className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors flex items-center gap-2 text-sm"
-                    title="저장된 계정 업로드"
-                  >
-                    <Upload size={16} />
-                    업로드
-                  </button>
-                  {/* 다운로드 버튼 */}
-                  <button
-                    onClick={handleDownloadAccounts}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors flex items-center gap-2 text-sm"
-                    title="저장된 계정 다운로드"
-                  >
-                    <Download size={18} />
-                    다운로드
-                  </button>
-                  {/* 숨겨진 파일 입력 */}
-                  <input
-                    ref={uploadInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleUploadAccounts}
-                    className="hidden"
-                  />
-                </div>
               </div>
 
               <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
