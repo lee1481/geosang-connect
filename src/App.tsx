@@ -1670,6 +1670,30 @@ const App: React.FC = () => {
           </div>
           <form onSubmit={e => { 
             e.preventDefault(); 
+            
+            // 유효성 검사
+            if (!formData.staffList || formData.staffList.length === 0) {
+              alert('❌ 최소 1명 이상의 인원을 등록해야 합니다.');
+              return;
+            }
+            
+            // 외주팀: 이름과 연락처 필수
+            if (isOutsource) {
+              const emptyStaff = formData.staffList.find(s => !s.name?.trim() || !s.phone?.trim());
+              if (emptyStaff) {
+                alert('❌ 외주팀 등록 시 이름과 연락처는 필수 입력입니다.');
+                return;
+              }
+            } 
+            // 다른 카테고리: 성명과 연락처 필수
+            else {
+              const emptyStaff = formData.staffList.find(s => !s.name?.trim() || !s.phone?.trim());
+              if (emptyStaff) {
+                alert('❌ 인원 등록 시 성명과 연락처는 필수 입력입니다.');
+                return;
+              }
+            }
+            
             console.log('=== 폼 제출 ===');
             console.log('formData:', formData);
             console.log('category:', formData.category);
