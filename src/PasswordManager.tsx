@@ -39,6 +39,7 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
   const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [showFormPassword, setShowFormPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   // 관리자 권한 확인
   if (currentUser?.username !== 'admin') {
@@ -169,11 +170,6 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
     setShowPassword(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // PDF 저장
-  const handleSavePDF = () => {
-    alert('📄 PDF 내보내기 기능은 추후 구현 예정입니다.');
-  };
-
   // 파일로 저장
   const handleSaveFile = () => {
     const dataStr = JSON.stringify(entries, null, 2);
@@ -219,48 +215,49 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
     }
   };
 
-  // 샘플 데이터 추가 (테스트용)
-  const handleAddSampleData = () => {
-    if (confirm('테스트용 샘플 데이터 3개를 추가하시겠습니까?')) {
-      const sampleEntries: PasswordEntry[] = [
-        {
-          id: Date.now().toString(),
-          accountName: '네이버 (개인)',
-          websiteUrl: 'https://naver.com',
-          username: 'test@naver.com',
-          password: 'password123!',
-          twoFactorCode: '1234-5678-9012',
-          memo: '테스트 계정 1',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: (Date.now() + 1).toString(),
-          accountName: '구글 (업무용)',
-          websiteUrl: 'https://google.com',
-          username: 'work@gmail.com',
-          password: 'secure@password',
-          twoFactorCode: '',
-          memo: '테스트 계정 2',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: (Date.now() + 2).toString(),
-          accountName: '카카오톡',
-          websiteUrl: 'https://kakao.com',
-          username: 'kakao_id',
-          password: 'kakao1234',
-          twoFactorCode: '',
-          memo: '테스트 계정 3',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+  // 계정 데이터 업로드 (JSON 파일)
+  const handleUploadAccounts = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (Array.isArray(data)) {
+          // 기존 데이터와 병합
+          const mergedEntries = [...entries, ...data];
+          saveEntries(mergedEntries);
+          alert(`✅ ${data.length}개의 계정 정보를 업로드했습니다.`);
+        } else {
+          alert('❌ 올바른 형식의 파일이 아닙니다.');
         }
-      ];
-      
-      saveEntries([...entries, ...sampleEntries]);
-      alert('✅ 샘플 데이터 3개가 추가되었습니다!');
+      } catch (error) {
+        alert('❌ 파일을 읽는 중 오류가 발생했습니다.');
+      }
+    };
+    reader.readAsText(file);
+    
+    // 파일 입력 초기화
+    if (uploadInputRef.current) uploadInputRef.current.value = '';
+  };
+
+  // 계정 데이터 다운로드 (JSON 파일)
+  const handleDownloadAccounts = () => {
+    if (entries.length === 0) {
+      alert('❌ 다운로드할 계정 정보가 없습니다.');
+      return;
     }
+
+    const dataStr = JSON.stringify(entries, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `계정목록_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    alert(`✅ ${entries.length}개의 계정 정보를 다운로드했습니다.`);
   };
 
   return (
@@ -474,22 +471,32 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
                   저장된 계정 목록 ({entries.length})
                 </h2>
                 <div className="flex items-center gap-2">
-                  {/* 테스트용 샘플 데이터 추가 버튼 */}
+                  {/* 업로드 버튼 */}
                   <button
-                    onClick={handleAddSampleData}
+                    onClick={() => uploadInputRef.current?.click()}
                     className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors flex items-center gap-2 text-sm"
-                    title="테스트용 샘플 데이터 추가"
+                    title="저장된 계정 업로드"
                   >
-                    <Plus size={16} />
-                    샘플
+                    <Upload size={16} />
+                    업로드
                   </button>
+                  {/* 다운로드 버튼 */}
                   <button
-                    onClick={handleSavePDF}
+                    onClick={handleDownloadAccounts}
                     className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors flex items-center gap-2 text-sm"
+                    title="저장된 계정 다운로드"
                   >
                     <Download size={18} />
-                    PDF 저장
+                    다운로드
                   </button>
+                  {/* 숨겨진 파일 입력 */}
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleUploadAccounts}
+                    className="hidden"
+                  />
                 </div>
               </div>
 
