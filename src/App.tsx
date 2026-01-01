@@ -1561,7 +1561,15 @@ const App: React.FC = () => {
             </div>
             <button onClick={onClose} className="p-2 bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all"><X size={20}/></button>
           </div>
-          <form onSubmit={e => { e.preventDefault(); onSubmit(formData); }} className="space-y-6 lg:space-y-8">
+          <form onSubmit={e => { 
+            e.preventDefault(); 
+            console.log('=== 폼 제출 ===');
+            console.log('formData:', formData);
+            console.log('category:', formData.category);
+            console.log('brandName:', formData.brandName);
+            console.log('staffList:', formData.staffList);
+            onSubmit(formData); 
+          }} className="space-y-6 lg:space-y-8">
             {isOutsource && renderItemManagement(outsourceTypes, 'OUTSOURCE')}
             {!isOutsource && (
               <div className="space-y-4 lg:space-y-6">
@@ -2107,18 +2115,38 @@ const App: React.FC = () => {
               
               if (editingContact) {
                 // 수정
+                console.log('=== 수정 API 호출 전 ===');
+                console.log('전송할 데이터:', c);
+                
                 const response = await contactsAPI.update(c.id, c);
-                if (response.success) {
-                  setContacts(prev => prev.map(old => old.id === c.id ? c : old));
+                
+                console.log('=== 수정 API 응답 ===');
+                console.log('response:', response);
+                console.log('response.data:', response.data);
+                
+                if (response.success && response.data) {
+                  console.log('=== 메인 화면에 업데이트할 데이터 ===');
+                  console.log('response.data:', response.data);
+                  setContacts(prev => prev.map(old => old.id === c.id ? response.data : old));
                   setIsModalOpen(false);
                 } else {
                   alert('수정 실패: ' + (response.error || '알 수 없는 오류'));
                 }
               } else {
                 // 생성
+                console.log('=== API 호출 전 ===');
+                console.log('전송할 데이터:', c);
+                
                 const response = await contactsAPI.create(c);
-                if (response.success) {
-                  setContacts(prev => [...prev, c]);
+                
+                console.log('=== API 응답 ===');
+                console.log('response:', response);
+                console.log('response.data:', response.data);
+                
+                if (response.success && response.data) {
+                  console.log('=== 메인 화면에 추가할 데이터 ===');
+                  console.log('response.data:', response.data);
+                  setContacts(prev => [...prev, response.data]);
                   setIsModalOpen(false);
                 } else {
                   alert('등록 실패: ' + (response.error || '알 수 없는 오류'));
