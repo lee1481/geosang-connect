@@ -1903,7 +1903,7 @@ const App: React.FC = () => {
           <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<UtensilsCrossed size={18} />} label="요식업(개인)" active={activeCategory === CategoryType.SALES && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Briefcase size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
         </nav>
 
         <div className="p-4 border-t border-white/5 space-y-2">
@@ -1955,7 +1955,7 @@ const App: React.FC = () => {
           <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<UtensilsCrossed size={18} />} label="요식업(개인)" active={activeCategory === CategoryType.SALES && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Briefcase size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
         </nav>
 
         <div className="p-4 border-t border-white/5 space-y-2">
