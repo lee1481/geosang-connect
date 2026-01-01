@@ -138,7 +138,39 @@ app.get('/api/contacts', async (c) => {
       'SELECT * FROM contacts ORDER BY created_at DESC'
     ).all();
     
-    return c.json({ success: true, data: results });
+    // DB 형식 → 프론트엔드 형식 변환
+    const transformed = results.map((row: any) => ({
+      id: row.id,
+      category: row.category,
+      brandName: row.companyName || '',
+      industry: row.industry || '',
+      subCategory: row.region || '',
+      address: row.address || '',
+      storeAddress: row.storeAddress || '',
+      phone: row.phone || '',
+      email: row.email || '',
+      bankAccount: row.memo || '',
+      franchiseBrand: row.franchiseBrand || '',
+      storeName: row.storeName || '',
+      contractDate: row.contractDate || '',
+      memo: row.memo || '',
+      staffList: [{
+        id: 's' + row.id,
+        name: row.name || '',
+        position: row.position || '',
+        phone: row.phone || '',
+        email: row.email || '',
+        department: row.department || '',
+        rating: 5,
+        region: row.region || '',
+        bankAccount: row.memo || '',
+        features: row.features || ''
+      }],
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    }));
+    
+    return c.json({ success: true, data: transformed });
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
   }
@@ -148,11 +180,33 @@ app.post('/api/contacts', async (c) => {
   try {
     const body = await c.req.json();
     
-    const {
-      id, name, companyName, phone, email, address, category,
-      department, position, industry, businessType, features,
-      region, franchiseBrand, storeName, storeAddress, contractDate, memo
-    } = body;
+    // undefined를 null로 변환하는 헬퍼 함수
+    const toNull = (value: any) => value === undefined ? null : value;
+    
+    // 프론트엔드 형식 → DB 형식 변환
+    // staffList에서 첫 번째 인원의 정보를 추출
+    const firstStaff = body.staffList?.[0] || {};
+    
+    const dbData = {
+      id: toNull(body.id),
+      name: toNull(firstStaff.name || body.name || '이름 없음'),  // staffList[0].name 우선, 없으면 기본값
+      companyName: toNull(body.brandName || body.companyName),  // brandName → companyName
+      phone: toNull(firstStaff.phone || body.phone),
+      email: toNull(firstStaff.email || body.email),
+      address: toNull(body.address || body.storeAddress),
+      category: toNull(body.category),
+      department: toNull(firstStaff.department || body.department),
+      position: toNull(firstStaff.position || body.position),
+      industry: toNull(body.industry),
+      businessType: toNull(body.businessType),
+      features: toNull(firstStaff.features || body.features),
+      region: toNull(firstStaff.region || body.region),
+      franchiseBrand: toNull(body.franchiseBrand),
+      storeName: toNull(body.storeName),
+      storeAddress: toNull(body.storeAddress),
+      contractDate: toNull(body.contractDate),
+      memo: toNull(body.memo)
+    };
     
     await c.env.DB.prepare(`
       INSERT INTO contacts (
@@ -161,14 +215,14 @@ app.post('/api/contacts', async (c) => {
         region, franchiseBrand, storeName, storeAddress, contractDate, memo
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      id, name, companyName || null, phone || null, email || null,
-      address || null, category, department || null, position || null,
-      industry || null, businessType || null, features || null,
-      region || null, franchiseBrand || null, storeName || null,
-      storeAddress || null, contractDate || null, memo || null
+      dbData.id, dbData.name, dbData.companyName, dbData.phone, dbData.email,
+      dbData.address, dbData.category, dbData.department, dbData.position,
+      dbData.industry, dbData.businessType, dbData.features,
+      dbData.region, dbData.franchiseBrand, dbData.storeName,
+      dbData.storeAddress, dbData.contractDate, dbData.memo
     ).run();
     
-    return c.json({ success: true, data: { id } });
+    return c.json({ success: true, data: { id: body.id } });
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
   }
@@ -179,11 +233,31 @@ app.put('/api/contacts/:id', async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json();
     
-    const {
-      name, companyName, phone, email, address, category,
-      department, position, industry, businessType, features,
-      region, franchiseBrand, storeName, storeAddress, contractDate, memo
-    } = body;
+    // undefined를 null로 변환하는 헬퍼 함수
+    const toNull = (value: any) => value === undefined ? null : value;
+    
+    // 프론트엔드 형식 → DB 형식 변환
+    const firstStaff = body.staffList?.[0] || {};
+    
+    const dbData = {
+      name: toNull(firstStaff.name || body.name || '이름 없음'),
+      companyName: toNull(body.brandName || body.companyName),
+      phone: toNull(firstStaff.phone || body.phone),
+      email: toNull(firstStaff.email || body.email),
+      address: toNull(body.address || body.storeAddress),
+      category: toNull(body.category),
+      department: toNull(firstStaff.department || body.department),
+      position: toNull(firstStaff.position || body.position),
+      industry: toNull(body.industry),
+      businessType: toNull(body.businessType),
+      features: toNull(firstStaff.features || body.features),
+      region: toNull(firstStaff.region || body.region),
+      franchiseBrand: toNull(body.franchiseBrand),
+      storeName: toNull(body.storeName),
+      storeAddress: toNull(body.storeAddress),
+      contractDate: toNull(body.contractDate),
+      memo: toNull(body.memo)
+    };
     
     await c.env.DB.prepare(`
       UPDATE contacts SET
@@ -194,11 +268,11 @@ app.put('/api/contacts/:id', async (c) => {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(
-      name, companyName || null, phone || null, email || null,
-      address || null, category, department || null, position || null,
-      industry || null, businessType || null, features || null,
-      region || null, franchiseBrand || null, storeName || null,
-      storeAddress || null, contractDate || null, memo || null, id
+      dbData.name, dbData.companyName, dbData.phone, dbData.email,
+      dbData.address, dbData.category, dbData.department, dbData.position,
+      dbData.industry, dbData.businessType, dbData.features,
+      dbData.region, dbData.franchiseBrand, dbData.storeName,
+      dbData.storeAddress, dbData.contractDate, dbData.memo, id
     ).run();
     
     return c.json({ success: true });
@@ -224,7 +298,14 @@ app.get('/api/labor-claims', async (c) => {
       'SELECT * FROM labor_claims ORDER BY created_at DESC'
     ).all();
     
-    return c.json({ success: true, data: results });
+    // Parse JSON fields
+    const parsedResults = results.map((row: any) => ({
+      ...row,
+      sites: JSON.parse(row.sites || '[]'),
+      breakdown: JSON.parse(row.breakdown || '{}')
+    }));
+    
+    return c.json({ success: true, data: parsedResults });
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
   }
@@ -235,18 +316,30 @@ app.post('/api/labor-claims', async (c) => {
     const body = await c.req.json();
     
     const {
-      id, workerId, workerName, projectName, startDate, endDate,
-      days, dailyRate, totalAmount, status, notes
+      id, workerId, workerName, workerPhone, date, sites, totalAmount,
+      breakdown, status, memo, createdAt
     } = body;
+    
+    // undefined를 null로 변환하는 헬퍼 함수
+    const toNull = (value: any) => value === undefined ? null : value;
     
     await c.env.DB.prepare(`
       INSERT INTO labor_claims (
-        id, workerId, workerName, projectName, startDate, endDate,
-        days, dailyRate, totalAmount, status, notes
+        id, workerId, workerName, workerPhone, date, sites,
+        totalAmount, breakdown, status, memo, createdAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      id, workerId, workerName, projectName, startDate, endDate,
-      days, dailyRate, totalAmount, status || 'pending', notes || null
+      toNull(id),
+      toNull(workerId),
+      toNull(workerName),
+      toNull(workerPhone),
+      toNull(date),
+      JSON.stringify(sites || []),
+      toNull(totalAmount) || 0,
+      JSON.stringify(breakdown || {}),
+      status || 'pending',
+      toNull(memo),
+      createdAt || new Date().toISOString()
     ).run();
     
     return c.json({ success: true, data: { id } });
@@ -261,22 +354,34 @@ app.put('/api/labor-claims/:id', async (c) => {
     const body = await c.req.json();
     
     const {
-      workerId, workerName, projectName, startDate, endDate,
-      days, dailyRate, totalAmount, status, notes,
-      approvedBy, approvedAt, paidAt
+      workerId, workerName, workerPhone, date, sites, totalAmount,
+      breakdown, status, memo, approvedBy, approvedAt, paidAt
     } = body;
+    
+    // undefined를 null로 변환하는 헬퍼 함수
+    const toNull = (value: any) => value === undefined ? null : value;
     
     await c.env.DB.prepare(`
       UPDATE labor_claims SET
-        workerId = ?, workerName = ?, projectName = ?, startDate = ?,
-        endDate = ?, days = ?, dailyRate = ?, totalAmount = ?, status = ?,
-        notes = ?, approvedBy = ?, approvedAt = ?, paidAt = ?,
+        workerId = ?, workerName = ?, workerPhone = ?, date = ?, sites = ?,
+        totalAmount = ?, breakdown = ?, status = ?, memo = ?,
+        approvedBy = ?, approvedAt = ?, paidAt = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(
-      workerId, workerName, projectName, startDate, endDate,
-      days, dailyRate, totalAmount, status, notes || null,
-      approvedBy || null, approvedAt || null, paidAt || null, id
+      toNull(workerId),
+      toNull(workerName),
+      toNull(workerPhone),
+      toNull(date),
+      JSON.stringify(sites || []),
+      toNull(totalAmount) || 0,
+      JSON.stringify(breakdown || {}),
+      toNull(status) || 'pending',
+      toNull(memo),
+      toNull(approvedBy),
+      toNull(approvedAt),
+      toNull(paidAt),
+      id
     ).run();
     
     return c.json({ success: true });
