@@ -1758,11 +1758,11 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         {/* 헤더: 반응형 레이아웃 */}
-        <header className="h-14 md:h-16 lg:h-20 bg-slate-900 border-b border-slate-700 flex items-center justify-between px-3 md:px-6 lg:px-10 sticky top-0 z-40 shadow-sm gap-2">
+        <header className="h-14 md:h-16 lg:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-3 md:px-6 lg:px-10 sticky top-0 z-40 shadow-sm gap-2">
           {/* 모바일 메뉴 버튼 */}
           <button 
             onClick={() => setIsMobileMenuOpen(true)} 
-            className="md:hidden p-2 text-slate-300 hover:bg-slate-800 rounded-lg flex-shrink-0"
+            className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg flex-shrink-0"
           >
             <Menu size={24} />
           </button>
@@ -1778,7 +1778,7 @@ const App: React.FC = () => {
                 {/* PC: 전체 버튼, 모바일: 아이콘만 */}
                 <button 
                   onClick={() => csvInputRef.current?.click()} 
-                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-slate-800 border-2 border-emerald-500 text-emerald-300 rounded-lg md:rounded-xl hover:bg-slate-700 shadow-sm font-bold flex items-center gap-2" 
+                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-white border-2 border-emerald-500 text-emerald-600 rounded-lg md:rounded-xl hover:bg-emerald-50 shadow-sm font-bold flex items-center gap-2" 
                   title="파일업로드"
                 >
                   <Upload size={16} className="md:w-[18px] md:h-[18px]" /> 
@@ -1786,7 +1786,7 @@ const App: React.FC = () => {
                 </button>
                 <button 
                   onClick={handleCSVDownload} 
-                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-slate-800 border-2 border-blue-500 text-blue-300 rounded-lg md:rounded-xl hover:bg-slate-700 shadow-sm font-bold flex items-center gap-2" 
+                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-white border-2 border-blue-500 text-blue-600 rounded-lg md:rounded-xl hover:bg-blue-50 shadow-sm font-bold flex items-center gap-2" 
                   title="다운로드"
                 >
                   <Download size={16} className="md:w-[18px] md:h-[18px]" /> 
