@@ -138,41 +138,17 @@ app.get('/api/contacts', async (c) => {
       'SELECT * FROM contacts ORDER BY created_at DESC'
     ).all();
     
-    // DB 형식 → 프론트엔드 형식 변환
-    const transformed = results.map((row: any) => ({
-      id: row.id,
-      category: row.category,
-      brandName: row.companyName || '',
-      industry: row.industry || '',
-      subCategory: row.region || '',
-      address: row.address || '',
-      storeAddress: row.storeAddress || '',
-      phone: row.phone || '',
-      email: row.email || '',
-      bankAccount: row.memo || '',
-      franchiseBrand: row.franchiseBrand || '',
-      storeName: row.storeName || '',
-      contractDate: row.contractDate || '',
-      memo: row.memo || '',
-      staffList: [{
-        id: 's' + row.id,
-        name: row.name || '',
-        position: row.position || '',
-        phone: row.phone || '',
-        email: row.email || '',
-        department: row.department || '',
-        rating: 5,
-        region: row.region || '',
-        bankAccount: row.memo || '',
-        features: row.features || ''
-      }],
-      created_at: row.created_at,
-      updated_at: row.updated_at
+    // JSON 필드 파싱
+    const parsedResults = results.map((row: any) => ({
+      ...row,
+      staffList: row.staffList ? JSON.parse(row.staffList) : [],
+      attachments: row.attachments ? JSON.parse(row.attachments) : []
     }));
     
-    return c.json({ success: true, data: transformed });
+    return c.json({ success: true, data: parsedResults });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error('GET /api/contacts error:', error);
+    return c.json({ success: false, error: error.message }, 500);
   }
 });
 
@@ -180,91 +156,53 @@ app.post('/api/contacts', async (c) => {
   try {
     const body = await c.req.json();
     
-    // undefined를 null로 변환하는 헬퍼 함수
-    const toNull = (value: any) => value === undefined ? null : value;
+    console.log('=== POST /api/contacts ===');
+    console.log('받은 데이터:', JSON.stringify(body, null, 2));
     
-    // 프론트엔드 형식 → DB 형식 변환
-    // staffList에서 첫 번째 인원의 정보를 추출
-    const firstStaff = body.staffList?.[0] || {};
-    
-    const dbData = {
-      id: toNull(body.id),
-      name: toNull(firstStaff.name || body.name || '이름 없음'),  // staffList[0].name 우선, 없으면 기본값
-      companyName: toNull(body.brandName || body.companyName),  // brandName → companyName
-      phone: toNull(firstStaff.phone || body.phone),
-      email: toNull(firstStaff.email || body.email),
-      address: toNull(body.address || body.storeAddress),
-      category: toNull(body.category),
-      department: toNull(firstStaff.department || body.department),
-      position: toNull(firstStaff.position || body.position),
-      industry: toNull(body.industry),
-      businessType: toNull(body.businessType),
-      features: toNull(firstStaff.features || body.features),
-      region: toNull(firstStaff.region || body.region),
-      franchiseBrand: toNull(body.franchiseBrand),
-      storeName: toNull(body.storeName),
-      storeAddress: toNull(body.storeAddress),
-      contractDate: toNull(body.contractDate),
-      memo: toNull(body.memo)
-    };
+    // staffList와 attachments를 JSON 문자열로 변환
+    const staffListJson = JSON.stringify(body.staffList || []);
+    const attachmentsJson = JSON.stringify(body.attachments || []);
     
     await c.env.DB.prepare(`
       INSERT INTO contacts (
-        id, name, companyName, phone, email, address, category,
-        department, position, industry, businessType, features,
-        region, franchiseBrand, storeName, storeAddress, contractDate, memo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, category, brandName, subCategory, industry, address, 
+        phone, phone2, email, homepage, bankAccount, licenseFile,
+        staffList, attachments, memo, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `).bind(
-      dbData.id, dbData.name, dbData.companyName, dbData.phone, dbData.email,
-      dbData.address, dbData.category, dbData.department, dbData.position,
-      dbData.industry, dbData.businessType, dbData.features,
-      dbData.region, dbData.franchiseBrand, dbData.storeName,
-      dbData.storeAddress, dbData.contractDate, dbData.memo
+      body.id,
+      body.category,
+      body.brandName || null,
+      body.subCategory || null,
+      body.industry || null,
+      body.address || null,
+      body.phone || null,
+      body.phone2 || null,
+      body.email || null,
+      body.homepage || null,
+      body.bankAccount || null,
+      body.licenseFile || null,
+      staffListJson,
+      attachmentsJson,
+      body.memo || null
     ).run();
     
-    // 저장 후 DB에서 다시 조회하여 변환된 데이터 반환
-    const { results } = await c.env.DB.prepare(
-      'SELECT * FROM contacts WHERE id = ?'
-    ).bind(body.id).all();
+    // 생성된 데이터 반환
+    const createdData = {
+      ...body,
+      staffList: body.staffList || [],
+      attachments: body.attachments || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
     
-    if (results.length > 0) {
-      const row: any = results[0];
-      const transformed = {
-        id: row.id,
-        category: row.category,
-        brandName: row.companyName || '',
-        industry: row.industry || '',
-        subCategory: row.region || '',
-        address: row.address || '',
-        storeAddress: row.storeAddress || '',
-        phone: row.phone || '',
-        email: row.email || '',
-        bankAccount: row.memo || '',
-        franchiseBrand: row.franchiseBrand || '',
-        storeName: row.storeName || '',
-        contractDate: row.contractDate || '',
-        memo: row.memo || '',
-        staffList: [{
-          id: 's' + row.id,
-          name: row.name || '',
-          position: row.position || '',
-          phone: row.phone || '',
-          email: row.email || '',
-          department: row.department || '',
-          rating: 5,
-          region: row.region || '',
-          bankAccount: row.memo || '',
-          features: row.features || ''
-        }],
-        created_at: row.created_at,
-        updated_at: row.updated_at
-      };
-      return c.json({ success: true, data: transformed });
-    }
+    console.log('=== 생성된 데이터 ===');
+    console.log(JSON.stringify(createdData, null, 2));
     
-    return c.json({ success: true, data: { id: body.id } });
+    return c.json({ success: true, data: createdData }, 201);
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error('POST /api/contacts error:', error);
+    return c.json({ success: false, error: error.message }, 500);
   }
 });
 
@@ -273,91 +211,66 @@ app.put('/api/contacts/:id', async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json();
     
-    // undefined를 null로 변환하는 헬퍼 함수
-    const toNull = (value: any) => value === undefined ? null : value;
+    console.log('=== PUT /api/contacts/:id ===');
+    console.log('수정할 ID:', id);
+    console.log('받은 데이터:', JSON.stringify(body, null, 2));
     
-    // 프론트엔드 형식 → DB 형식 변환
-    const firstStaff = body.staffList?.[0] || {};
-    
-    const dbData = {
-      name: toNull(firstStaff.name || body.name || '이름 없음'),
-      companyName: toNull(body.brandName || body.companyName),
-      phone: toNull(firstStaff.phone || body.phone),
-      email: toNull(firstStaff.email || body.email),
-      address: toNull(body.address || body.storeAddress),
-      category: toNull(body.category),
-      department: toNull(firstStaff.department || body.department),
-      position: toNull(firstStaff.position || body.position),
-      industry: toNull(body.industry),
-      businessType: toNull(body.businessType),
-      features: toNull(firstStaff.features || body.features),
-      region: toNull(firstStaff.region || body.region),
-      franchiseBrand: toNull(body.franchiseBrand),
-      storeName: toNull(body.storeName),
-      storeAddress: toNull(body.storeAddress),
-      contractDate: toNull(body.contractDate),
-      memo: toNull(body.memo)
-    };
+    // staffList와 attachments를 JSON 문자열로 변환
+    const staffListJson = JSON.stringify(body.staffList || []);
+    const attachmentsJson = JSON.stringify(body.attachments || []);
     
     await c.env.DB.prepare(`
       UPDATE contacts SET
-        name = ?, companyName = ?, phone = ?, email = ?, address = ?,
-        category = ?, department = ?, position = ?, industry = ?,
-        businessType = ?, features = ?, region = ?, franchiseBrand = ?,
-        storeName = ?, storeAddress = ?, contractDate = ?, memo = ?,
+        category = ?,
+        brandName = ?,
+        subCategory = ?,
+        industry = ?,
+        address = ?,
+        phone = ?,
+        phone2 = ?,
+        email = ?,
+        homepage = ?,
+        bankAccount = ?,
+        licenseFile = ?,
+        staffList = ?,
+        attachments = ?,
+        memo = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(
-      dbData.name, dbData.companyName, dbData.phone, dbData.email,
-      dbData.address, dbData.category, dbData.department, dbData.position,
-      dbData.industry, dbData.businessType, dbData.features,
-      dbData.region, dbData.franchiseBrand, dbData.storeName,
-      dbData.storeAddress, dbData.contractDate, dbData.memo, id
+      body.category,
+      body.brandName || null,
+      body.subCategory || null,
+      body.industry || null,
+      body.address || null,
+      body.phone || null,
+      body.phone2 || null,
+      body.email || null,
+      body.homepage || null,
+      body.bankAccount || null,
+      body.licenseFile || null,
+      staffListJson,
+      attachmentsJson,
+      body.memo || null,
+      id
     ).run();
     
-    // 수정 후 DB에서 다시 조회하여 변환된 데이터 반환
-    const { results } = await c.env.DB.prepare(
-      'SELECT * FROM contacts WHERE id = ?'
-    ).bind(id).all();
+    // 수정된 데이터 반환
+    const updatedData = {
+      ...body,
+      id,
+      staffList: body.staffList || [],
+      attachments: body.attachments || [],
+      updated_at: new Date().toISOString()
+    };
     
-    if (results.length > 0) {
-      const row: any = results[0];
-      const transformed = {
-        id: row.id,
-        category: row.category,
-        brandName: row.companyName || '',
-        industry: row.industry || '',
-        subCategory: row.region || '',
-        address: row.address || '',
-        storeAddress: row.storeAddress || '',
-        phone: row.phone || '',
-        email: row.email || '',
-        bankAccount: row.memo || '',
-        franchiseBrand: row.franchiseBrand || '',
-        storeName: row.storeName || '',
-        contractDate: row.contractDate || '',
-        memo: row.memo || '',
-        staffList: [{
-          id: 's' + row.id,
-          name: row.name || '',
-          position: row.position || '',
-          phone: row.phone || '',
-          email: row.email || '',
-          department: row.department || '',
-          rating: 5,
-          region: row.region || '',
-          bankAccount: row.memo || '',
-          features: row.features || ''
-        }],
-        created_at: row.created_at,
-        updated_at: row.updated_at
-      };
-      return c.json({ success: true, data: transformed });
-    }
+    console.log('=== 수정된 데이터 ===');
+    console.log(JSON.stringify(updatedData, null, 2));
     
-    return c.json({ success: true });
+    return c.json({ success: true, data: updatedData });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error('PUT /api/contacts/:id error:', error);
+    return c.json({ success: false, error: error.message }, 500);
   }
 });
 
