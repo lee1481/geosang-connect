@@ -199,9 +199,13 @@ const App: React.FC = () => {
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.GEOSANG);
-  // 검색 기능 제거됨
   
-  // 🔍 외주팀 검색 필터
+  // 🔍 통합 검색 필터 (모든 카테고리)
+  const [generalSearch, setGeneralSearch] = useState(''); // 이름, 연락처 검색
+  const [locationSearch, setLocationSearch] = useState(''); // 지역 검색
+  const [industryFilter, setIndustryFilter] = useState(''); // 업종 필터
+  
+  // 🔍 외주팀 전용 검색 필터
   const [outsourceSearch, setOutsourceSearch] = useState('');
   const [regionSearch, setRegionSearch] = useState('');
   const [outsourceTypeFilter, setOutsourceTypeFilter] = useState('');
@@ -406,7 +410,7 @@ const App: React.FC = () => {
         });
       }
       
-      // 활동지역 검색 (매우 중요!)
+      // 활동지역 검색
       if (regionSearch) {
         const regionLower = regionSearch.toLowerCase();
         list = list.filter(c => {
@@ -421,10 +425,44 @@ const App: React.FC = () => {
       if (outsourceTypeFilter) {
         list = list.filter(c => c.subCategory === outsourceTypeFilter);
       }
+    } else {
+      // 🔍 다른 카테고리 (거상, 매입, 프랜차이즈 등) 통합 검색 필터
+      
+      // 이름/연락처 검색
+      if (generalSearch) {
+        const searchLower = generalSearch.toLowerCase();
+        list = list.filter(c => {
+          // 브랜드명 검색
+          const brandMatch = c.brandName?.toLowerCase().includes(searchLower);
+          
+          // 직원 이름/연락처 검색
+          const staffMatch = c.staffList?.some(staff => {
+            const nameMatch = staff.name?.toLowerCase().includes(searchLower);
+            const phoneMatch = staff.phone?.toLowerCase().includes(searchLower);
+            return nameMatch || phoneMatch;
+          });
+          
+          return brandMatch || staffMatch;
+        });
+      }
+      
+      // 지역 검색
+      if (locationSearch) {
+        const locationLower = locationSearch.toLowerCase();
+        list = list.filter(c => {
+          const addressMatch = c.address?.toLowerCase().includes(locationLower);
+          return addressMatch;
+        });
+      }
+      
+      // 업종 필터
+      if (industryFilter) {
+        list = list.filter(c => c.industry === industryFilter);
+      }
     }
     
     return list;
-  }, [contacts, activeCategory, outsourceSearch, regionSearch, outsourceTypeFilter]);
+  }, [contacts, activeCategory, outsourceSearch, regionSearch, outsourceTypeFilter, generalSearch, locationSearch, industryFilter]);
 
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!isAdmin) return;
@@ -1986,7 +2024,7 @@ const App: React.FC = () => {
                 </div>
                 
                 {/* 외주팀 관리 전용 검색 */}
-                {activeCategory === CategoryType.OUTSOURCE && (
+                {activeCategory === CategoryType.OUTSOURCE ? (
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* 검색어 입력 */}
                     <div className="relative">
@@ -2031,6 +2069,60 @@ const App: React.FC = () => {
                           setOutsourceSearch('');
                           setRegionSearch('');
                           setOutsourceTypeFilter('');
+                        }}
+                        className="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center gap-2"
+                      >
+                        <X size={16} />
+                        초기화
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  /* 다른 카테고리 (거상, 매입, 프랜차이즈 등) 통합 검색 */
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* 이름/연락처 검색 */}
+                    <div className="relative">
+                      <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="이름, 연락처 검색..."
+                        value={generalSearch}
+                        onChange={(e) => setGeneralSearch(e.target.value)}
+                        className="pl-10 pr-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all w-48 md:w-64"
+                      />
+                    </div>
+                    
+                    {/* 지역 검색 */}
+                    <div className="relative">
+                      <MapPin size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-500" />
+                      <input
+                        type="text"
+                        placeholder="활동지역 검색 (부산, 서울...)"
+                        value={locationSearch}
+                        onChange={(e) => setLocationSearch(e.target.value)}
+                        className="pl-10 pr-4 py-2 border-2 border-emerald-200 rounded-xl text-sm font-medium focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all w-56 md:w-72 bg-emerald-50"
+                      />
+                    </div>
+                    
+                    {/* 업종 필터 */}
+                    <select
+                      value={industryFilter}
+                      onChange={(e) => setIndustryFilter(e.target.value)}
+                      className="px-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all bg-white"
+                    >
+                      <option value="">전체 업종</option>
+                      {industries.map(industry => (
+                        <option key={industry} value={industry}>{industry}</option>
+                      ))}
+                    </select>
+                    
+                    {/* 초기화 버튼 */}
+                    {(generalSearch || locationSearch || industryFilter) && (
+                      <button
+                        onClick={() => {
+                          setGeneralSearch('');
+                          setLocationSearch('');
+                          setIndustryFilter('');
                         }}
                         className="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center gap-2"
                       >
