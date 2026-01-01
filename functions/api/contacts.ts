@@ -17,8 +17,16 @@ app.get('/', async (c) => {
       'SELECT * FROM contacts ORDER BY created_at DESC'
     ).all();
     
-    return c.json({ success: true, data: results });
+    // JSON 필드 파싱
+    const parsedResults = results.map((row: any) => ({
+      ...row,
+      staffList: row.staffList ? JSON.parse(row.staffList) : [],
+      attachments: row.attachments ? JSON.parse(row.attachments) : []
+    }));
+    
+    return c.json({ success: true, data: parsedResults });
   } catch (error: any) {
+    console.error('GET /api/contacts error:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -35,8 +43,16 @@ app.get('/:id', async (c) => {
       return c.json({ success: false, error: 'Contact not found' }, 404);
     }
     
-    return c.json({ success: true, data: results[0] });
+    const row: any = results[0];
+    const parsed = {
+      ...row,
+      staffList: row.staffList ? JSON.parse(row.staffList) : [],
+      attachments: row.attachments ? JSON.parse(row.attachments) : []
+    };
+    
+    return c.json({ success: true, data: parsed });
   } catch (error: any) {
+    console.error('GET /api/contacts/:id error:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -46,28 +62,52 @@ app.post('/', async (c) => {
   try {
     const body = await c.req.json();
     
-    const {
-      id, name, companyName, phone, email, address, category,
-      department, position, industry, businessType, features,
-      region, franchiseBrand, storeName, storeAddress, contractDate, memo
-    } = body;
+    console.log('=== POST /api/contacts ===');
+    console.log('받은 데이터:', JSON.stringify(body, null, 2));
+    
+    // staffList와 attachments를 JSON 문자열로 변환
+    const staffListJson = JSON.stringify(body.staffList || []);
+    const attachmentsJson = JSON.stringify(body.attachments || []);
     
     await c.env.DB.prepare(`
       INSERT INTO contacts (
-        id, name, companyName, phone, email, address, category,
-        department, position, industry, businessType, features,
-        region, franchiseBrand, storeName, storeAddress, contractDate, memo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, category, brandName, subCategory, industry, address, 
+        phone, phone2, email, homepage, bankAccount, licenseFile,
+        staffList, attachments, memo, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `).bind(
-      id, name, companyName || null, phone || null, email || null,
-      address || null, category, department || null, position || null,
-      industry || null, businessType || null, features || null,
-      region || null, franchiseBrand || null, storeName || null,
-      storeAddress || null, contractDate || null, memo || null
+      body.id,
+      body.category,
+      body.brandName || null,
+      body.subCategory || null,
+      body.industry || null,
+      body.address || null,
+      body.phone || null,
+      body.phone2 || null,
+      body.email || null,
+      body.homepage || null,
+      body.bankAccount || null,
+      body.licenseFile || null,
+      staffListJson,
+      attachmentsJson,
+      body.memo || null
     ).run();
     
-    return c.json({ success: true, data: { id } }, 201);
+    // 생성된 데이터 반환
+    const createdData = {
+      ...body,
+      staffList: body.staffList || [],
+      attachments: body.attachments || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log('=== 생성된 데이터 ===');
+    console.log(JSON.stringify(createdData, null, 2));
+    
+    return c.json({ success: true, data: createdData }, 201);
   } catch (error: any) {
+    console.error('POST /api/contacts error:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -78,30 +118,65 @@ app.put('/:id', async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json();
     
-    const {
-      name, companyName, phone, email, address, category,
-      department, position, industry, businessType, features,
-      region, franchiseBrand, storeName, storeAddress, contractDate, memo
-    } = body;
+    console.log('=== PUT /api/contacts/:id ===');
+    console.log('수정할 ID:', id);
+    console.log('받은 데이터:', JSON.stringify(body, null, 2));
+    
+    // staffList와 attachments를 JSON 문자열로 변환
+    const staffListJson = JSON.stringify(body.staffList || []);
+    const attachmentsJson = JSON.stringify(body.attachments || []);
     
     await c.env.DB.prepare(`
       UPDATE contacts SET
-        name = ?, companyName = ?, phone = ?, email = ?, address = ?,
-        category = ?, department = ?, position = ?, industry = ?,
-        businessType = ?, features = ?, region = ?, franchiseBrand = ?,
-        storeName = ?, storeAddress = ?, contractDate = ?, memo = ?,
+        category = ?,
+        brandName = ?,
+        subCategory = ?,
+        industry = ?,
+        address = ?,
+        phone = ?,
+        phone2 = ?,
+        email = ?,
+        homepage = ?,
+        bankAccount = ?,
+        licenseFile = ?,
+        staffList = ?,
+        attachments = ?,
+        memo = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(
-      name, companyName || null, phone || null, email || null,
-      address || null, category, department || null, position || null,
-      industry || null, businessType || null, features || null,
-      region || null, franchiseBrand || null, storeName || null,
-      storeAddress || null, contractDate || null, memo || null, id
+      body.category,
+      body.brandName || null,
+      body.subCategory || null,
+      body.industry || null,
+      body.address || null,
+      body.phone || null,
+      body.phone2 || null,
+      body.email || null,
+      body.homepage || null,
+      body.bankAccount || null,
+      body.licenseFile || null,
+      staffListJson,
+      attachmentsJson,
+      body.memo || null,
+      id
     ).run();
     
-    return c.json({ success: true });
+    // 수정된 데이터 반환
+    const updatedData = {
+      ...body,
+      id,
+      staffList: body.staffList || [],
+      attachments: body.attachments || [],
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log('=== 수정된 데이터 ===');
+    console.log(JSON.stringify(updatedData, null, 2));
+    
+    return c.json({ success: true, data: updatedData });
   } catch (error: any) {
+    console.error('PUT /api/contacts/:id error:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -115,6 +190,7 @@ app.delete('/:id', async (c) => {
     
     return c.json({ success: true });
   } catch (error: any) {
+    console.error('DELETE /api/contacts/:id error:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
