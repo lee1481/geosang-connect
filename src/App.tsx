@@ -223,7 +223,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('geosang_projects_v1');
     return saved ? JSON.parse(saved) : [];
   });
-  const [isProjectView, setIsProjectView] = useState(false);
+
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
@@ -2355,17 +2355,17 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto pb-8 scrollbar-hide">
-          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView && !isProjectView} onClick={() => { setIsLaborClaimView(true); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<BarChart3 size={18} />} label="📊 프로젝트 손익표" active={isProjectView} onClick={() => { setIsProjectView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView} onClick={() => { setIsLaborClaimView(true); setIsMobileMenuOpen(false); }} />
+
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
-          <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<UtensilsCrossed size={18} />} label="자영업(매출처)" active={activeCategory === CategoryType.SALES && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<UtensilsCrossed size={18} />} label="자영업(매출처)" active={activeCategory === CategoryType.SALES && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
         </nav>
 
         <div className="p-4 border-t border-white/5 space-y-2">
@@ -2399,17 +2399,17 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto pb-8 scrollbar-hide">
-          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView && !isProjectView} onClick={() => { setIsLaborClaimView(true); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<BarChart3 size={18} />} label="📊 프로젝트 손익표" active={isProjectView} onClick={() => { setIsProjectView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView} onClick={() => { setIsLaborClaimView(true); setIsMobileMenuOpen(false); }} />
+
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
-          <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<UtensilsCrossed size={18} />} label="자영업(매출처)" active={activeCategory === CategoryType.SALES && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView && !isProjectView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsProjectView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<UtensilsCrossed size={18} />} label="자영업(매출처)" active={activeCategory === CategoryType.SALES && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
         </nav>
 
         <div className="p-4 border-t border-white/5 space-y-2">
