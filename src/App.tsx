@@ -1758,11 +1758,11 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         {/* 헤더: 반응형 레이아웃 */}
-        <header className="h-14 md:h-16 lg:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-3 md:px-6 lg:px-10 sticky top-0 z-40 shadow-sm gap-2">
+        <header className={`h-14 md:h-16 lg:h-20 ${isPasswordManagerView ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'} border-b flex items-center justify-between px-3 md:px-6 lg:px-10 sticky top-0 z-40 shadow-sm gap-2`}>
           {/* 모바일 메뉴 버튼 */}
           <button 
             onClick={() => setIsMobileMenuOpen(true)} 
-            className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg flex-shrink-0"
+            className={`md:hidden p-2 ${isPasswordManagerView ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'} rounded-lg flex-shrink-0`}
           >
             <Menu size={24} />
           </button>
