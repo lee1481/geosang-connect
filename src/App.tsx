@@ -1968,28 +1968,6 @@ const App: React.FC = () => {
 
           {/* 액션 버튼들: 반응형 레이아웃 */}
           <div className="flex items-center gap-1 md:gap-2 lg:gap-3">
-            {isAdmin && (
-              <>
-                <input type="file" ref={csvInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleCSVUpload} />
-                {/* PC: 전체 버튼, 모바일: 아이콘만 */}
-                <button 
-                  onClick={() => csvInputRef.current?.click()} 
-                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-white border-2 border-emerald-500 text-emerald-600 rounded-lg md:rounded-xl hover:bg-emerald-50 shadow-sm font-bold flex items-center gap-2" 
-                  title="파일업로드"
-                >
-                  <Upload size={16} className="md:w-[18px] md:h-[18px]" /> 
-                  <span className="hidden md:inline text-xs lg:text-sm">파일업로드</span>
-                </button>
-                <button 
-                  onClick={handleCSVDownload} 
-                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-white border-2 border-blue-500 text-blue-600 rounded-lg md:rounded-xl hover:bg-blue-50 shadow-sm font-bold flex items-center gap-2" 
-                  title="다운로드"
-                >
-                  <Download size={16} className="md:w-[18px] md:h-[18px]" /> 
-                  <span className="hidden md:inline text-xs lg:text-sm">다운로드</span>
-                </button>
-              </>
-            )}
             {/* 인건비 청구 및 비밀번호 관리 페이지에서는 신규등록 버튼 숨김 */}
             {!isLaborClaimView && !isPasswordManagerView && (
               <button 
