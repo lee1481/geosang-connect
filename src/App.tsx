@@ -226,100 +226,7 @@ const App: React.FC = () => {
   });
 
   // 인건비 청구 관리
-  const [laborClaims, setLaborClaims] = useState<LaborClaim[]>(() => {
-    const saved = localStorage.getItem('geosang_labor_claims_v1');
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    
-    // 샘플 데이터 (최초 실행 시)
-    const sampleClaims: LaborClaim[] = [
-      {
-        id: 'claim-sample-1',
-        workerId: 'worker-1',
-        workerName: '정경성',
-        workerPhone: '010-1234-5678',
-        date: new Date().toISOString().split('T')[0],
-        sites: [
-          { siteName: '컴포즈커피 인천점', hours: 5, allocatedAmount: 187500 },
-          { siteName: '스타벅스 강남점', hours: 2, allocatedAmount: 75000 },
-          { siteName: '투썸플레이스 판교점', hours: 1, allocatedAmount: 37500 }
-        ],
-        totalAmount: 300000,
-        breakdown: {
-          baseDaily: 200000,
-          overtimeHours: 2,
-          overtimeAmount: 50000,
-          carAllowance: 30000,
-          mealFee: 15000,
-          fuelFee: 0,
-          tollFee: 5000,
-          otherFee: 0
-        },
-        status: 'pending',
-        memo: '3개 현장 작업',
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 'claim-sample-2',
-        workerId: 'worker-2',
-        workerName: '김철수',
-        workerPhone: '010-9876-5432',
-        date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-        sites: [
-          { siteName: '이디야커피 부산점', hours: 8, allocatedAmount: 250000 }
-        ],
-        totalAmount: 250000,
-        breakdown: {
-          baseDaily: 200000,
-          overtimeHours: 0,
-          overtimeAmount: 0,
-          carAllowance: 30000,
-          mealFee: 20000,
-          fuelFee: 0,
-          tollFee: 0,
-          otherFee: 0
-        },
-        status: 'approved',
-        memo: '',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        approvedBy: 'admin',
-        approvedAt: new Date(Date.now() - 43200000).toISOString()
-      },
-      {
-        id: 'claim-sample-3',
-        workerId: 'worker-3',
-        workerName: '이영희',
-        workerPhone: '010-5555-7777',
-        date: new Date(Date.now() - 172800000).toISOString().split('T')[0],
-        sites: [
-          { siteName: '컴포즈커피 서울점', hours: 4, allocatedAmount: 120000 },
-          { siteName: '컴포즈커피 대전점', hours: 4, allocatedAmount: 130000 }
-        ],
-        totalAmount: 250000,
-        breakdown: {
-          baseDaily: 200000,
-          overtimeHours: 0,
-          overtimeAmount: 0,
-          carAllowance: 30000,
-          mealFee: 20000,
-          fuelFee: 0,
-          tollFee: 0,
-          otherFee: 0
-        },
-        status: 'paid',
-        memo: '컴포즈커피 2개 지점',
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-        approvedBy: 'admin',
-        approvedAt: new Date(Date.now() - 129600000).toISOString(),
-        paidAt: new Date(Date.now() - 86400000).toISOString()
-      }
-    ];
-    
-    // 샘플 데이터 저장
-    localStorage.setItem('geosang_labor_claims_v1', JSON.stringify(sampleClaims));
-    return sampleClaims;
-  });
+  const [laborClaims, setLaborClaims] = useState<LaborClaim[]>([]);
   const [isLaborClaimView, setIsLaborClaimView] = useState(false);
   const [isLaborClaimModalOpen, setIsLaborClaimModalOpen] = useState(false);
   const [editingClaim, setEditingClaim] = useState<LaborClaim | null>(null);
@@ -337,11 +244,20 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const response = await contactsAPI.getAll();
-        if (response.success && response.data) {
-          console.log('=== 초기 데이터 로드 ===');
-          console.log('API에서 가져온 데이터:', response.data);
-          setContacts(response.data);
+        // Contacts 로드
+        const contactsResponse = await contactsAPI.getAll();
+        if (contactsResponse.success && contactsResponse.data) {
+          console.log('=== Contacts 초기 데이터 로드 ===');
+          console.log('API에서 가져온 데이터:', contactsResponse.data);
+          setContacts(contactsResponse.data);
+        }
+        
+        // Labor Claims 로드
+        const laborClaimsResponse = await laborClaimsAPI.getAll();
+        if (laborClaimsResponse.success && laborClaimsResponse.data) {
+          console.log('=== Labor Claims 초기 데이터 로드 ===');
+          console.log('API에서 가져온 데이터:', laborClaimsResponse.data);
+          setLaborClaims(laborClaimsResponse.data);
         }
       } catch (error) {
         console.error('초기 데이터 로드 실패:', error);
@@ -350,14 +266,6 @@ const App: React.FC = () => {
     
     loadInitialData();
   }, []);
-
-  useEffect(() => {
-    console.log('=== localStorage 저장 ===');
-    console.log('저장할 laborClaims:', laborClaims);
-    console.log('laborClaims 개수:', laborClaims.length);
-    localStorage.setItem('geosang_labor_claims_v1', JSON.stringify(laborClaims));
-    console.log('localStorage에 저장 완료');
-  }, [laborClaims]);
 
   useEffect(() => {
     localStorage.setItem('geosang_projects_v1', JSON.stringify(projects));
