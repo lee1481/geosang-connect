@@ -153,19 +153,18 @@ export async function extractConstructionData(fileBase64: string, mimeType: stri
   const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
-    다음은 시공비 내역서(이미지 또는 문서)입니다. 
-    내용에서 다음 정보를 추출하여 JSON 형식으로 반환해 주세요:
-    - date (시공 날짜: YYYY-MM-DD)
-    - location (시공 장소/주소)
-    - amount (청구 금액: 숫자만)
-    - description (시공 내용 요약)
+    이 이미지의 모든 텍스트를 읽고 다음 정보를 추출하세요:
+    - date: 날짜 (YYYY-MM-DD, 없으면 오늘 날짜)
+    - location: 장소/주소 (없으면 "미상")
+    - amount: 금액 (숫자만, 없으면 0)
+    - description: 내용 요약 (없으면 "미상")
     
-    정확하게 알 수 없는 정보는 '미상'으로 표시하세요.
+    모든 필드는 필수입니다. 정보가 없으면 기본값을 사용하세요.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash-exp',
       contents: {
         parts: [
           { inlineData: { data: fileBase64, mimeType } },
@@ -202,17 +201,16 @@ export async function extractBusinessLicenseData(fileBase64: string, mimeType: s
   const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
-    이 이미지는 한국의 사업자등록증입니다. 
-    다음 정보를 추출하여 JSON 형식으로 반환해 주세요:
-    - brandName (상호 또는 법인명)
-    - address (사업장 소재지/주소)
+    이 이미지는 사업자등록증입니다. 모든 텍스트를 정확하게 읽고 다음을 추출하세요:
+    - brandName: 상호 또는 법인명 (필수)
+    - address: 사업장 주소 (필수)
     
-    정확하게 알 수 없는 정보는 빈 문자열("")로 표시하세요.
+    정보가 없으면 빈 문자열("")을 사용하세요.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash-exp',
       contents: {
         parts: [
           { inlineData: { data: fileBase64, mimeType } },
@@ -247,21 +245,20 @@ export async function extractBusinessCardData(fileBase64: string, mimeType: stri
   const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
-    이 이미지는 명함입니다. 
-    다음 정보를 추출하여 JSON 형식으로 반환해 주세요:
-    - name (성명)
-    - position (직함/직위)
-    - phone (개인 휴대폰 번호)
-    - companyPhone (회사 대표번호 또는 사무실 번호)
-    - email (이메일 주소)
-    - homepage (홈페이지 URL)
+    이 이미지는 명함입니다. 모든 텍스트를 정확하게 읽고 다음을 추출하세요:
+    - name: 성명 (필수)
+    - position: 직함/직위 (없으면 "")
+    - phone: 개인 휴대폰 번호 (없으면 "")
+    - companyPhone: 회사 대표번호 (없으면 "")
+    - email: 이메일 (없으면 "")
+    - homepage: 홈페이지 URL (없으면 "")
     
-    정확하게 알 수 없는 정보는 빈 문자열("")로 표시하세요.
+    정보가 없는 필드는 빈 문자열("")을 사용하세요.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash-exp',
       contents: {
         parts: [
           { inlineData: { data: fileBase64, mimeType } },
@@ -280,7 +277,7 @@ export async function extractBusinessCardData(fileBase64: string, mimeType: stri
             email: { type: Type.STRING },
             homepage: { type: Type.STRING },
           },
-          required: ["name", "position", "phone", "companyPhone", "email", "homepage"]
+          required: ["name"]
         }
       }
     });
@@ -302,86 +299,63 @@ export async function extractProjectDocument(fileBase64: string, mimeType: strin
   
   const prompts: Record<string, string> = {
     auto: `
-      🔍 이 이미지는 비즈니스 문서입니다. OCR로 텍스트를 추출하고 자동으로 문서 타입을 감지하세요.
+      이 이미지의 모든 텍스트를 정확하게 읽고 다음을 추출하세요:
       
-      다음 정보를 추출하세요:
-      1. detectedType: 문서 타입 자동 감지 (quotation/purchase_order/transaction_stmt/delivery_cost/design_proposal/other)
-         - 견적서, 견적, Quotation → "quotation"
-         - 발주서, 주문서, Order → "purchase_order"
-         - 거래명세서, 세금계산서, Invoice → "transaction_stmt"
-         - 영수증, 배송비, 퀵비, Receipt, Delivery → "delivery_cost"
-         - 시안, 디자인, Design → "design_proposal"
+      1. detectedType: 문서 타입
+         - 견적서 → quotation
+         - 발주서 → purchase_order  
+         - 거래명세서/세금계산서 → transaction_stmt
+         - 영수증/배송비 → delivery_cost
+         - 시안/디자인 → design_proposal
+         - 모르겠으면 → other
       
-      2. storeName: 매장명 (예: 컴포즈커피 인천점, 스타벅스 강남점)
-      3. franchiseName: 프랜차이즈명 (예: 컴포즈커피, 스타벅스)
-      4. amount: 총 금액 (숫자만, 쉼표 제거)
-      5. date: 날짜 (YYYY-MM-DD 형식)
-      6. supplier: 공급업체명/거래처명 (있는 경우)
-      7. items: 항목 목록 (배열, 있는 경우)
-      8. fullText: OCR로 추출한 전체 텍스트
+      2. storeName: 매장명 (예: 컴포즈커피 인천점)
+      3. franchiseName: 프랜차이즈명 (예: 컴포즈커피)
+      4. amount: 금액 (숫자만)
+      5. date: 날짜 (YYYY-MM-DD)
+      6. fullText: 이미지의 모든 텍스트
       
-      ⚠️ 중요: 
-      - 모든 텍스트를 정확하게 읽어주세요 (한글, 영어, 숫자 모두)
-      - 금액은 쉼표를 제거하고 숫자만 반환
-      - 매장명은 최대한 정확하게 추출
-      - fullText에는 이미지의 모든 텍스트를 포함
+      필수: detectedType, storeName, amount
+      정보 없으면: storeName="미상", amount=0
     `,
     design_proposal: `
-      🎨 이 이미지는 간판 디자인 시안입니다. OCR로 텍스트를 추출하세요.
-      
-      다음 정보를 추출하세요:
-      - storeName: 매장명 (예: 컴포즈커피 인천점, 스타벅스 강남점)
-      - franchiseName: 프랜차이즈명 (예: 컴포즈커피, 스타벅스)
-      - location: 지점명/위치 (예: 인천점, 강남점)
-      - designNotes: 디자인 특징 요약
-      - fullText: OCR로 추출한 전체 텍스트
+      이 이미지는 디자인 시안입니다. 모든 텍스트를 읽고 추출하세요:
+      - storeName: 매장명
+      - franchiseName: 프랜차이즈명
+      - fullText: 모든 텍스트
       - detectedType: "design_proposal"
     `,
     quotation: `
-      📋 이 이미지는 견적서입니다. OCR로 모든 텍스트를 정확하게 추출하세요.
-      
-      다음 정보를 추출하세요:
-      - storeName: 매장명 (예: 컴포즈커피 인천점)
+      이 이미지는 견적서입니다. 모든 텍스트를 읽고 추출하세요:
+      - storeName: 매장명
       - franchiseName: 프랜차이즈명
-      - amount: 총 견적 금액 (숫자만, 쉼표 제거)
-      - date: 견적일자 (YYYY-MM-DD)
-      - items: 견적 항목 목록 (배열)
-      - fullText: OCR로 추출한 전체 텍스트
+      - amount: 금액 (숫자만)
+      - date: 날짜 (YYYY-MM-DD)
+      - fullText: 모든 텍스트
       - detectedType: "quotation"
     `,
     purchase_order: `
-      📦 이 이미지는 발주서입니다. OCR로 텍스트를 추출하세요.
-      
-      다음 정보를 추출하세요:
+      이 이미지는 발주서입니다. 모든 텍스트를 읽고 추출하세요:
       - storeName: 매장명
-      - supplier: 공급업체명
-      - amount: 발주 금액 (숫자만)
-      - date: 발주일자 (YYYY-MM-DD)
-      - items: 발주 항목 목록
-      - fullText: OCR로 추출한 전체 텍스트
+      - amount: 금액 (숫자만)
+      - date: 날짜 (YYYY-MM-DD)
+      - fullText: 모든 텍스트
       - detectedType: "purchase_order"
     `,
     transaction_stmt: `
-      🧾 이 이미지는 거래명세서입니다. OCR로 텍스트를 추출하세요.
-      
-      다음 정보를 추출하세요:
-      - storeName: 매장명 (거래처명에서 추출)
-      - supplier: 공급업체명
-      - amount: 거래 금액 (숫자만)
-      - date: 거래일자 (YYYY-MM-DD)
-      - items: 거래 항목 목록
-      - fullText: OCR로 추출한 전체 텍스트
+      이 이미지는 거래명세서입니다. 모든 텍스트를 읽고 추출하세요:
+      - storeName: 매장명
+      - amount: 금액 (숫자만)
+      - date: 날짜 (YYYY-MM-DD)
+      - fullText: 모든 텍스트
       - detectedType: "transaction_stmt"
     `,
     delivery_cost: `
-      🚚 이 이미지는 배송비/퀵비 영수증입니다. OCR로 텍스트를 추출하세요.
-      
-      다음 정보를 추출하세요:
-      - storeName: 배송지 매장명
-      - amount: 배송비 금액 (숫자만)
-      - date: 배송일자 (YYYY-MM-DD)
-      - deliveryType: 배송 유형 (택배/퀵/차량/기타)
-      - fullText: OCR로 추출한 전체 텍스트
+      이 이미지는 영수증입니다. 모든 텍스트를 읽고 추출하세요:
+      - storeName: 매장명
+      - amount: 금액 (숫자만)
+      - date: 날짜 (YYYY-MM-DD)
+      - fullText: 모든 텍스트
       - detectedType: "delivery_cost"
     `
   };
@@ -417,7 +391,7 @@ export async function extractProjectDocument(fileBase64: string, mimeType: strin
               items: { type: Type.STRING }
             }
           },
-          required: []
+          required: ["storeName", "amount"]
         }
       }
     });
