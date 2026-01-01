@@ -598,10 +598,22 @@ const App: React.FC = () => {
       <div className="bg-white rounded-xl md:rounded-2xl lg:rounded-[2rem] p-4 md:p-5 lg:p-8 shadow-sm hover:shadow-xl transition-all border border-slate-100 flex flex-col h-full relative group">
         <div className="flex justify-between items-start mb-3 md:mb-4 lg:mb-6">
           <div className="min-w-0 flex-1">
-            <div className="mb-1.5 flex flex-wrap gap-1">
-              <span className="px-2 md:px-3 py-0.5 md:py-1 rounded text-[10px] md:text-[11px] font-black bg-blue-600 text-white uppercase tracking-widest shadow-sm">{contact.industry || contact.subCategory || getCategoryName(contact.category)}</span>
-              {isOutsource && contact.staffList[0]?.region && (
-                <span className="px-2 md:px-3 py-0.5 md:py-1 rounded text-[10px] md:text-[11px] font-black bg-emerald-600 text-white tracking-widest shadow-sm">{contact.staffList[0].region}</span>
+            <div className="mb-1.5 flex flex-wrap gap-2 items-center">
+              {isOutsource ? (
+                <>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-slate-500 font-bold">구분</span>
+                    <span className="px-2 md:px-3 py-0.5 md:py-1 rounded text-[10px] md:text-[11px] font-black bg-red-600 text-white tracking-widest shadow-sm">{contact.subCategory || '시공일당'}</span>
+                  </div>
+                  {contact.staffList[0]?.region && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-slate-500 font-bold">활동지역</span>
+                      <span className="px-2 md:px-3 py-0.5 md:py-1 rounded text-[10px] md:text-[11px] font-black bg-emerald-600 text-white tracking-widest shadow-sm">{contact.staffList[0].region}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <span className="px-2 md:px-3 py-0.5 md:py-1 rounded text-[10px] md:text-[11px] font-black bg-blue-600 text-white uppercase tracking-widest shadow-sm">{contact.industry || getCategoryName(contact.category)}</span>
               )}
             </div>
             <h3 className="text-base md:text-lg lg:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate">{isOutsource ? contact.staffList[0]?.name : contact.brandName}</h3>
