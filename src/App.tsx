@@ -1497,8 +1497,24 @@ const App: React.FC = () => {
             <h3 className="text-lg font-black text-slate-900 mb-4">🏢 프랜차이즈별 통계</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {franchiseSummaries.map(([name, data]) => (
-                <div key={name} className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
-                  <h4 className="font-black text-slate-900 mb-2">{name}</h4>
+                <div key={name} className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200 relative group">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-black text-slate-900">{name}</h4>
+                    {/* 삭제 버튼 */}
+                    <button
+                      onClick={() => {
+                        if (confirm(`"${name}" 프랜차이즈의 모든 데이터를 삭제하시겠습니까?\n\n⚠️ 이 작업은 되돌릴 수 없습니다!\n- 매장 수: ${data.stores}개\n- 총 문서: ${data.documentCount}건`)) {
+                          // 해당 프랜차이즈의 모든 프로젝트 삭제
+                          setProjects(prev => prev.filter(p => p.franchiseName !== name));
+                          alert(`✅ "${name}" 프랜차이즈 데이터가 삭제되었습니다.`);
+                        }
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg"
+                      title={`${name} 삭제`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span className="text-slate-600">매장 수:</span>
