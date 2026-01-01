@@ -269,10 +269,10 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
       <div className="max-w-[1920px] mx-auto mb-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl lg:text-4xl font-black text-white mb-3">
-            🔐 아이디/비밀번호 저장 앱
+            🔐 계정관리
           </h1>
           <p className="text-slate-300 text-sm lg:text-base">
-            새로운 디자인으로 더욱 안전하고 편리하게 관리하세요.
+            아이디와 비밀번호를 안전하고 편리하게 관리하세요.
           </p>
         </div>
 

@@ -1682,7 +1682,7 @@ const App: React.FC = () => {
           <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView && !isPasswordManagerView} onClick={() => { setIsLaborClaimView(true); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           {currentUser?.username === 'admin' && (
-            <SidebarItem icon={<Shield size={18} />} label="🔐 비밀번호 관리" active={isPasswordManagerView} onClick={() => { setIsPasswordManagerView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+            <SidebarItem icon={<Shield size={18} />} label="🔐 계정관리" active={isPasswordManagerView} onClick={() => { setIsPasswordManagerView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
           )}
 
           <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
@@ -1729,7 +1729,7 @@ const App: React.FC = () => {
           <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView && !isPasswordManagerView} onClick={() => { setIsLaborClaimView(true); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           {currentUser?.username === 'admin' && (
-            <SidebarItem icon={<Shield size={18} />} label="🔐 비밀번호 관리" active={isPasswordManagerView} onClick={() => { setIsPasswordManagerView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+            <SidebarItem icon={<Shield size={18} />} label="🔐 계정관리" active={isPasswordManagerView} onClick={() => { setIsPasswordManagerView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
           )}
 
           <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
