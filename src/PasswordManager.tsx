@@ -219,6 +219,50 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
     }
   };
 
+  // 샘플 데이터 추가 (테스트용)
+  const handleAddSampleData = () => {
+    if (confirm('테스트용 샘플 데이터 3개를 추가하시겠습니까?')) {
+      const sampleEntries: PasswordEntry[] = [
+        {
+          id: Date.now().toString(),
+          accountName: '네이버 (개인)',
+          websiteUrl: 'https://naver.com',
+          username: 'test@naver.com',
+          password: 'password123!',
+          twoFactorCode: '1234-5678-9012',
+          memo: '테스트 계정 1',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: (Date.now() + 1).toString(),
+          accountName: '구글 (업무용)',
+          websiteUrl: 'https://google.com',
+          username: 'work@gmail.com',
+          password: 'secure@password',
+          twoFactorCode: '',
+          memo: '테스트 계정 2',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: (Date.now() + 2).toString(),
+          accountName: '카카오톡',
+          websiteUrl: 'https://kakao.com',
+          username: 'kakao_id',
+          password: 'kakao1234',
+          twoFactorCode: '',
+          memo: '테스트 계정 3',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
+      
+      saveEntries([...entries, ...sampleEntries]);
+      alert('✅ 샘플 데이터 3개가 추가되었습니다!');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 lg:p-8">
       {/* 헤더 */}
@@ -429,13 +473,24 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
                   <FileText size={24} />
                   저장된 계정 목록 ({entries.length})
                 </h2>
-                <button
-                  onClick={handleSavePDF}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors flex items-center gap-2 text-sm"
-                >
-                  <Download size={18} />
-                  PDF 저장
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* 테스트용 샘플 데이터 추가 버튼 */}
+                  <button
+                    onClick={handleAddSampleData}
+                    className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors flex items-center gap-2 text-sm"
+                    title="테스트용 샘플 데이터 추가"
+                  >
+                    <Plus size={16} />
+                    샘플
+                  </button>
+                  <button
+                    onClick={handleSavePDF}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors flex items-center gap-2 text-sm"
+                  >
+                    <Download size={18} />
+                    PDF 저장
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
