@@ -38,7 +38,6 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [showFormPassword, setShowFormPassword] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   // 관리자 권한 확인
@@ -168,51 +167,6 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
   // 비밀번호 표시/숨김 토글
   const togglePasswordVisibility = (id: string) => {
     setShowPassword(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  // 파일로 저장
-  const handleSaveFile = () => {
-    const dataStr = JSON.stringify(entries, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `passwords_backup_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    alert('✅ 파일로 저장되었습니다.');
-  };
-
-  // 파일 불러오기
-  const handleLoadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        if (Array.isArray(data)) {
-          saveEntries(data);
-          alert('✅ 파일을 불러왔습니다.');
-        } else {
-          alert('❌ 올바른 형식의 파일이 아닙니다.');
-        }
-      } catch (error) {
-        alert('❌ 파일을 읽는 중 오류가 발생했습니다.');
-      }
-    };
-    reader.readAsText(file);
-    
-    // 파일 입력 초기화
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  // 양식 초기화
-  const handleResetForm = () => {
-    if (confirm('입력한 내용을 모두 초기화하시겠습니까?')) {
-      handleCancelEdit();
-    }
   };
 
   // 계정 데이터 업로드 (JSON 파일)
@@ -389,7 +343,7 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
                   </div>
                 </div>
 
-                <div className="pt-4 space-y-3">
+                <div className="pt-4">
                   <button
                     type="submit"
                     className={`w-full py-3 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${
@@ -410,76 +364,8 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
                       </>
                     )}
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleResetForm}
-                    className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors"
-                  >
-                    {editingId ? '수정 취소' : '양식 초기화'}
-                  </button>
                 </div>
               </form>
-            </div>
-
-            {/* 보안 정보 */}
-            <div className="bg-slate-800 rounded-2xl p-6 shadow-2xl border border-slate-700 mt-6">
-              <h2 className="text-xl font-bold text-emerald-400 mb-6 flex items-center gap-2">
-                <Shield size={24} />
-                보안 정보
-              </h2>
-
-              <div className="space-y-4">
-                {/* 2FA 복구 코드 */}
-                <div>
-                  <label className="block text-slate-300 text-sm font-semibold mb-2">
-                    2단계 인증(2FA) 복구 코드
-                  </label>
-                  <textarea
-                    value={formData.twoFactorCode}
-                    onChange={(e) => setFormData({ ...formData, twoFactorCode: e.target.value })}
-                    placeholder="예: 1234-abcd-5678-efgh&#x0a;9012-ijkl-3456-mnop"
-                    className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border border-slate-600 focus:border-emerald-500 focus:outline-none h-24 resize-none"
-                  />
-                </div>
-
-                {/* 메모 */}
-                <div>
-                  <label className="block text-slate-300 text-sm font-semibold mb-2">
-                    메모
-                  </label>
-                  <textarea
-                    value={formData.memo}
-                    onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
-                    placeholder="예: 2025년 10월 8일에 비밀번호 변경함."
-                    className="w-full px-4 py-3 bg-slate-700 text-white rounded-xl border border-slate-600 focus:border-emerald-500 focus:outline-none h-24 resize-none"
-                  />
-                </div>
-              </div>
-
-              {/* 파일 관리 버튼 */}
-              <div className="grid grid-cols-2 gap-3 mt-6">
-                <button
-                  onClick={handleSaveFile}
-                  className="py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
-                >
-                  <Download size={18} />
-                  파일로 저장
-                </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
-                >
-                  <Upload size={18} />
-                  파일 불러오기
-                </button>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleLoadFile}
-                className="hidden"
-              />
             </div>
           </div>
 
