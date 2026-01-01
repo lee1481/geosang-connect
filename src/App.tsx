@@ -2088,25 +2088,46 @@ const App: React.FC = () => {
       {isModalOpen && (
         <ContactFormModal 
           onClose={() => setIsModalOpen(false)} 
-          onSubmit={(c: Contact) => { 
-            // 거상 조직도일 때 회사 정보 저장
-            if (c.category === CategoryType.GEOSANG) {
-              const companyInfo = {
-                brandName: c.brandName,
-                industry: c.industry,
-                address: c.address,
-                phone: c.phone,
-                phone2: c.phone2,
-                email: c.email,
-                homepage: c.homepage,
-                bankAccount: c.bankAccount
-              };
-              localStorage.setItem('geosang_company_info_v1', JSON.stringify(companyInfo));
+          onSubmit={async (c: Contact) => { 
+            try {
+              // 거상 조직도일 때 회사 정보 localStorage에 저장
+              if (c.category === CategoryType.GEOSANG) {
+                const companyInfo = {
+                  brandName: c.brandName,
+                  industry: c.industry,
+                  address: c.address,
+                  phone: c.phone,
+                  phone2: c.phone2,
+                  email: c.email,
+                  homepage: c.homepage,
+                  bankAccount: c.bankAccount
+                };
+                localStorage.setItem('geosang_company_info_v1', JSON.stringify(companyInfo));
+              }
+              
+              if (editingContact) {
+                // 수정
+                const response = await contactsAPI.update(c.id, c);
+                if (response.success) {
+                  setContacts(prev => prev.map(old => old.id === c.id ? c : old));
+                  setIsModalOpen(false);
+                } else {
+                  alert('수정 실패: ' + (response.error || '알 수 없는 오류'));
+                }
+              } else {
+                // 생성
+                const response = await contactsAPI.create(c);
+                if (response.success) {
+                  setContacts(prev => [...prev, c]);
+                  setIsModalOpen(false);
+                } else {
+                  alert('등록 실패: ' + (response.error || '알 수 없는 오류'));
+                }
+              }
+            } catch (error) {
+              console.error('저장 실패:', error);
+              alert('저장 중 오류가 발생했습니다.');
             }
-            
-            if (editingContact) setContacts(prev => prev.map(old => old.id === c.id ? c : old)); 
-            else setContacts(prev => [...prev, c]); 
-            setIsModalOpen(false); 
           }}
           currentCategory={activeCategory} initialData={editingContact} departments={departments} industries={industries} outsourceTypes={outsourceTypes}
           onAddDept={(dept: string) => setDepartments(prev => [...prev, dept])} onAddIndustry={(ind: string) => setIndustries(prev => [...prev, ind])} onAddOutsourceType={(type: string) => setOutsourceTypes(prev => [...prev, type])}
