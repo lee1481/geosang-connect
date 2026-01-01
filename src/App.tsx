@@ -94,6 +94,12 @@ const App: React.FC = () => {
   });
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.GEOSANG);
   // 검색 기능 제거됨
+  
+  // 🔍 외주팀 검색 필터
+  const [outsourceSearch, setOutsourceSearch] = useState('');
+  const [regionSearch, setRegionSearch] = useState('');
+  const [outsourceTypeFilter, setOutsourceTypeFilter] = useState('');
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -298,8 +304,42 @@ const App: React.FC = () => {
 
   const filteredContacts = useMemo(() => {
     let list = contacts.filter(c => c.category === activeCategory);
+    
+    // 🔍 외주팀 관리 전용 검색 필터
+    if (activeCategory === CategoryType.OUTSOURCE) {
+      // 이름/연락처 검색
+      if (outsourceSearch) {
+        const searchLower = outsourceSearch.toLowerCase();
+        list = list.filter(c => {
+          const staff = c.staffList[0];
+          if (!staff) return false;
+          
+          const nameMatch = staff.name?.toLowerCase().includes(searchLower);
+          const phoneMatch = staff.phone?.toLowerCase().includes(searchLower);
+          
+          return nameMatch || phoneMatch;
+        });
+      }
+      
+      // 활동지역 검색 (매우 중요!)
+      if (regionSearch) {
+        const regionLower = regionSearch.toLowerCase();
+        list = list.filter(c => {
+          const staff = c.staffList[0];
+          if (!staff || !staff.region) return false;
+          
+          return staff.region.toLowerCase().includes(regionLower);
+        });
+      }
+      
+      // 구분 필터 (시공일당, 크레인)
+      if (outsourceTypeFilter) {
+        list = list.filter(c => c.subCategory === outsourceTypeFilter);
+      }
+    }
+    
     return list;
-  }, [contacts, activeCategory]);
+  }, [contacts, activeCategory, outsourceSearch, regionSearch, outsourceTypeFilter]);
 
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!isAdmin) return;
@@ -2421,8 +2461,68 @@ const App: React.FC = () => {
         ) : (
           <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth">
             <div className="mb-4 md:mb-6 lg:mb-10">
-              <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">{getCategoryName(activeCategory)}</h2>
-              <p className="text-[10px] md:text-xs lg:text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">데이터 현황: {filteredContacts.length}건</p>
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">{getCategoryName(activeCategory)}</h2>
+                  <p className="text-[10px] md:text-xs lg:text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">데이터 현황: {filteredContacts.length}건</p>
+                </div>
+                
+                {/* 외주팀 관리 전용 검색 */}
+                {activeCategory === CategoryType.OUTSOURCE && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* 검색어 입력 */}
+                    <div className="relative">
+                      <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="이름, 연락처 검색..."
+                        value={outsourceSearch}
+                        onChange={(e) => setOutsourceSearch(e.target.value)}
+                        className="pl-10 pr-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all w-48 md:w-64"
+                      />
+                    </div>
+                    
+                    {/* 활동지역 검색 */}
+                    <div className="relative">
+                      <MapPin size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-500" />
+                      <input
+                        type="text"
+                        placeholder="활동지역 검색 (부산, 서울...)"
+                        value={regionSearch}
+                        onChange={(e) => setRegionSearch(e.target.value)}
+                        className="pl-10 pr-4 py-2 border-2 border-emerald-200 rounded-xl text-sm font-medium focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all w-56 md:w-72 bg-emerald-50"
+                      />
+                    </div>
+                    
+                    {/* 구분 필터 (시공일당, 크레인) */}
+                    <select
+                      value={outsourceTypeFilter}
+                      onChange={(e) => setOutsourceTypeFilter(e.target.value)}
+                      className="px-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all bg-white"
+                    >
+                      <option value="">전체 구분</option>
+                      {outsourceTypes.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                    
+                    {/* 초기화 버튼 */}
+                    {(outsourceSearch || regionSearch || outsourceTypeFilter) && (
+                      <button
+                        onClick={() => {
+                          setOutsourceSearch('');
+                          setRegionSearch('');
+                          setOutsourceTypeFilter('');
+                        }}
+                        className="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center gap-2"
+                      >
+                        <X size={16} />
+                        초기화
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* 반응형 그리드: 모바일 1열, 태블릿 2열, PC 3열 */}
