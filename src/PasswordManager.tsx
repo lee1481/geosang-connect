@@ -20,7 +20,10 @@ interface PasswordManagerProps {
 export default function PasswordManager({ currentUser }: PasswordManagerProps) {
   const [entries, setEntries] = useState<PasswordEntry[]>(() => {
     const saved = localStorage.getItem('password_entries');
-    return saved ? JSON.parse(saved) : [];
+    console.log('🔐 PasswordManager - localStorage 데이터 로드:', saved);
+    const parsed = saved ? JSON.parse(saved) : [];
+    console.log('🔐 PasswordManager - 파싱된 entries 개수:', parsed.length);
+    return parsed;
   });
 
   const [formData, setFormData] = useState({
@@ -52,8 +55,10 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
 
   // 저장 함수
   const saveEntries = (newEntries: PasswordEntry[]) => {
+    console.log('🔐 PasswordManager - 저장할 entries:', newEntries.length);
     setEntries(newEntries);
     localStorage.setItem('password_entries', JSON.stringify(newEntries));
+    console.log('🔐 PasswordManager - localStorage 저장 완료');
   };
 
   // 항목 추가 또는 수정
@@ -434,11 +439,15 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
               </div>
 
               <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+                {/* 디버깅: entries 상태 표시 */}
+                {console.log('🔐 렌더링 시점 - entries 개수:', entries.length)}
+                
                 {entries.length === 0 ? (
                   <div className="text-center py-12 text-slate-400">
                     <Shield size={48} className="mx-auto mb-4 opacity-50" />
                     <p className="text-lg">저장된 계정이 없습니다.</p>
                     <p className="text-sm">좌측에서 계정 정보를 입력해주세요.</p>
+                    <p className="text-xs mt-2 text-slate-500">entries.length = {entries.length}</p>
                   </div>
                 ) : (
                   entries.map((entry) => (
