@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Eye, EyeOff, Copy, Trash2, Plus, X, Download, Upload, FileText, Shield, Edit2, Save } from 'lucide-react';
+import { Eye, EyeOff, Copy, Trash2, Plus, X, Download, Upload, FileText, Shield, Edit2, Save, Search } from 'lucide-react';
 
 interface PasswordEntry {
   id: string;
@@ -38,6 +38,7 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [showFormPassword, setShowFormPassword] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   // 관리자 권한 확인
@@ -235,6 +236,16 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
     alert(`✅ ${entries.length}개의 계정 정보를 CSV 파일로 다운로드했습니다.`);
   };
 
+  // 검색 필터링
+  const filteredEntries = entries.filter(entry => {
+    const query = searchQuery.toLowerCase();
+    return (
+      entry.accountName.toLowerCase().includes(query) ||
+      entry.username.toLowerCase().includes(query) ||
+      entry.websiteUrl.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 lg:p-8">
       {/* 헤더 */}
@@ -372,26 +383,79 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
           {/* 우측: 저장된 계정 목록 */}
           <div className="w-full lg:flex-1 lg:min-w-0">
             <div className="bg-slate-800 rounded-2xl p-6 shadow-2xl border border-slate-700">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-blue-400 flex items-center gap-2">
-                  <FileText size={24} />
-                  저장된 계정 목록 ({entries.length})
-                </h2>
+              <div className="flex flex-col gap-4 mb-6">
+                {/* 첫 번째 줄: 제목 */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-blue-400 flex items-center gap-2">
+                    <FileText size={24} />
+                    저장된 계정 목록 ({filteredEntries.length}/{entries.length})
+                  </h2>
+                </div>
+                
+                {/* 두 번째 줄: 검색창, 업로드, 다운로드 */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  {/* 검색창 */}
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="계정명, 아이디, 웹사이트 검색..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-700 text-white text-sm rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none placeholder-slate-400"
+                    />
+                  </div>
+                  
+                  {/* 업로드 버튼 */}
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleUploadAccounts}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => uploadInputRef.current?.click()}
+                    className="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
+                    title="계정 업로드"
+                  >
+                    <Upload size={18} />
+                    <span className="hidden sm:inline">업로드</span>
+                  </button>
+                  
+                  {/* 다운로드 버튼 */}
+                  <button
+                    onClick={handleDownloadAccounts}
+                    className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
+                    title="계정 다운로드"
+                  >
+                    <Download size={18} />
+                    <span className="hidden sm:inline">다운로드</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+              <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
                 {/* 디버깅: entries 상태 표시 */}
-                {console.log('🔐 렌더링 시점 - entries 개수:', entries.length)}
+                {console.log('🔐 렌더링 시점 - entries 개수:', entries.length, '필터링:', filteredEntries.length)}
                 
-                {entries.length === 0 ? (
+                {filteredEntries.length === 0 ? (
                   <div className="text-center py-12 text-slate-400">
                     <Shield size={48} className="mx-auto mb-4 opacity-50" />
-                    <p className="text-lg">저장된 계정이 없습니다.</p>
-                    <p className="text-sm">좌측에서 계정 정보를 입력해주세요.</p>
-                    <p className="text-xs mt-2 text-slate-500">entries.length = {entries.length}</p>
+                    {entries.length === 0 ? (
+                      <>
+                        <p className="text-lg">저장된 계정이 없습니다.</p>
+                        <p className="text-sm">좌측에서 계정 정보를 입력해주세요.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-lg">검색 결과가 없습니다.</p>
+                        <p className="text-sm">다른 검색어로 시도해보세요.</p>
+                      </>
+                    )}
                   </div>
                 ) : (
-                  entries.map((entry) => (
+                  filteredEntries.map((entry) => (
                     <div
                       key={entry.id}
                       className="bg-slate-700/50 rounded-lg p-4 border border-slate-600/50 hover:border-cyan-500/50 transition-colors relative"
