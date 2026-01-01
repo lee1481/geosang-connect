@@ -1295,7 +1295,7 @@ const App: React.FC = () => {
         email: companyInfo?.email || '',
         homepage: companyInfo?.homepage || '',
         bankAccount: companyInfo?.bankAccount || '',
-        subCategory: isOutsource ? '시공일당' : '',
+        subCategory: isOutsource ? (outsourceTypes[0] || '시공일당') : '',
         staffList: [{ 
           id: 's' + Date.now(), 
           name: '', 
