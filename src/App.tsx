@@ -353,6 +353,8 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setLoginId('');
+    setLoginPw('');
     localStorage.removeItem('geosang_logged_in_user_obj_v2');
     localStorage.removeItem('geosang_login_time');
   };
