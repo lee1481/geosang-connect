@@ -568,9 +568,9 @@ const App: React.FC = () => {
       const headers = ['구분', '이름', '연락처', '활동지역', '주민번호/사업자번호', '계좌번호', '비고'];
       const rows = list.map(c => {
         const s = c.staffList[0];
-        return [c.subCategory, s?.name, s?.phone, s?.region, s?.residentNumber, s?.bankAccount, s?.features];
+        return [c.subCategory, s?.name, s?.phone, s?.region, s?.residentNumber ? String(s.residentNumber) : '', s?.bankAccount, s?.features];
       });
-      csvContent += [headers, ...rows].map(e => e.map(v => `"${v}"`).join(",")).join("\n");
+      csvContent += [headers, ...rows].map(e => e.map(v => `"${v || ''}"`).join(",")).join("\n");
     } else {
       const headers = ['상호', '업종', '주소', '대표번호', '이메일', '홈페이지', '직원성명', '직함', '연락처', '부서'];
       const rows = list.map(c => {
@@ -703,7 +703,7 @@ const App: React.FC = () => {
               <div className="text-slate-600 text-[11px] lg:text-xs flex flex-col gap-1 font-medium font-mono">
                 <a href={`tel:${staff.phone}`} className="flex items-center gap-2 hover:text-blue-600 transition-colors"><Phone size={12} className="text-slate-400" /> {staff.phone}</a>
                 {!isOutsource && staff.position && <div className="flex items-center gap-2"><Briefcase size={12} className="text-slate-400" /> {staff.position}</div>}
-                {isOutsource && staff.residentNumber && <div className="flex items-center gap-2"><Lock size={12} className="text-slate-400" /> {staff.residentNumber}</div>}
+                {isOutsource && staff.residentNumber && <div className="flex items-center gap-2"><Lock size={12} className="text-slate-400" /> {String(staff.residentNumber)}</div>}
                 {(staff.bankAccount || contact.bankAccount) && <div className="flex items-center gap-2"><CreditCard size={12} className="text-slate-400" /> {staff.bankAccount || contact.bankAccount}</div>}
                 {!isOutsource && staff.email && <a href={`mailto:${staff.email}`} className="flex items-center gap-2 hover:text-blue-600 transition-colors"><Mail size={12} className="text-slate-400" /> {staff.email}</a>}
               </div>
