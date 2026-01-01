@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Eye, EyeOff, Copy, Trash2, Plus, X, Download, Upload, FileText, Shield } from 'lucide-react';
+import { Eye, EyeOff, Copy, Trash2, Plus, X, Download, Upload, FileText, Shield, Edit2, Save } from 'lucide-react';
 
 interface PasswordEntry {
   id: string;
@@ -32,6 +32,7 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
     memo: ''
   });
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<{ [key: string]: boolean }>({});
   const [showFormPassword, setShowFormPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,7 +56,7 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
     localStorage.setItem('password_entries', JSON.stringify(newEntries));
   };
 
-  // 항목 추가
+  // 항목 추가 또는 수정
   const handleAddEntry = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -64,19 +65,42 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
       return;
     }
 
-    const newEntry: PasswordEntry = {
-      id: Date.now().toString(),
-      accountName: formData.accountName,
-      websiteUrl: formData.websiteUrl,
-      username: formData.username,
-      password: formData.password,
-      twoFactorCode: formData.twoFactorCode,
-      memo: formData.memo,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    if (editingId) {
+      // 수정 모드
+      const updatedEntries = entries.map(entry => 
+        entry.id === editingId 
+          ? {
+              ...entry,
+              accountName: formData.accountName,
+              websiteUrl: formData.websiteUrl,
+              username: formData.username,
+              password: formData.password,
+              twoFactorCode: formData.twoFactorCode,
+              memo: formData.memo,
+              updatedAt: new Date().toISOString()
+            }
+          : entry
+      );
+      saveEntries(updatedEntries);
+      setEditingId(null);
+      alert('✅ 계정 정보가 수정되었습니다.');
+    } else {
+      // 추가 모드
+      const newEntry: PasswordEntry = {
+        id: Date.now().toString(),
+        accountName: formData.accountName,
+        websiteUrl: formData.websiteUrl,
+        username: formData.username,
+        password: formData.password,
+        twoFactorCode: formData.twoFactorCode,
+        memo: formData.memo,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-    saveEntries([...entries, newEntry]);
+      saveEntries([...entries, newEntry]);
+      alert('✅ 계정 정보가 저장되었습니다.');
+    }
     
     // 폼 초기화
     setFormData({
@@ -87,14 +111,45 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
       twoFactorCode: '',
       memo: ''
     });
-    
-    alert('✅ 계정 정보가 저장되었습니다.');
+  };
+
+  // 항목 수정 모드로 전환
+  const handleEditEntry = (entry: PasswordEntry) => {
+    setEditingId(entry.id);
+    setFormData({
+      accountName: entry.accountName,
+      websiteUrl: entry.websiteUrl,
+      username: entry.username,
+      password: entry.password,
+      twoFactorCode: entry.twoFactorCode || '',
+      memo: entry.memo || ''
+    });
+    // 폼으로 스크롤
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // 수정 취소
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData({
+      accountName: '',
+      websiteUrl: '',
+      username: '',
+      password: '',
+      twoFactorCode: '',
+      memo: ''
+    });
   };
 
   // 항목 삭제
   const handleDeleteEntry = (id: string) => {
     if (confirm('이 계정 정보를 삭제하시겠습니까?')) {
       saveEntries(entries.filter(e => e.id !== id));
+      // 수정 중이던 항목이 삭제되면 초기화
+      if (editingId === id) {
+        handleCancelEdit();
+      }
+      alert('✅ 삭제되었습니다.');
     }
   };
 
@@ -155,14 +210,7 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
   // 양식 초기화
   const handleResetForm = () => {
     if (confirm('입력한 내용을 모두 초기화하시겠습니까?')) {
-      setFormData({
-        accountName: '',
-        websiteUrl: '',
-        username: '',
-        password: '',
-        twoFactorCode: '',
-        memo: ''
-      });
+      handleCancelEdit();
     }
   };
 
@@ -183,10 +231,30 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
           {/* 좌측: 계정 정보 입력 */}
           <div className="lg:col-span-1">
             <div className="bg-slate-800 rounded-2xl p-6 shadow-2xl border border-slate-700">
-              <h2 className="text-xl font-bold text-cyan-400 mb-6 flex items-center gap-2">
-                <Shield size={24} />
-                계정 정보 입력
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2">
+                  <Shield size={24} />
+                  {editingId ? '계정 정보 수정' : '계정 정보 입력'}
+                </h2>
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="text-red-400 hover:text-red-300 transition-colors flex items-center gap-1 text-sm"
+                  >
+                    <X size={16} />
+                    취소
+                  </button>
+                )}
+              </div>
+              {editingId && (
+                <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <p className="text-yellow-400 text-sm flex items-center gap-2">
+                    <Edit2 size={16} />
+                    수정 모드: 정보를 수정하고 저장하세요.
+                  </p>
+                </div>
+              )}
 
               <form onSubmit={handleAddEntry} className="space-y-4">
                 {/* 계정 명칭 */}
@@ -257,17 +325,30 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
                 <div className="pt-4 space-y-3">
                   <button
                     type="submit"
-                    className="w-full py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                    className={`w-full py-3 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                      editingId 
+                        ? 'bg-green-500 hover:bg-green-600' 
+                        : 'bg-cyan-500 hover:bg-cyan-600'
+                    }`}
                   >
-                    <Plus size={20} />
-                    항목 추가
+                    {editingId ? (
+                      <>
+                        <Save size={20} />
+                        수정 완료
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={20} />
+                        항목 추가
+                      </>
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={handleResetForm}
                     className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors"
                   >
-                    양식 초기화
+                    {editingId ? '수정 취소' : '양식 초기화'}
                   </button>
                 </div>
               </form>
@@ -367,12 +448,22 @@ export default function PasswordManager({ currentUser }: PasswordManagerProps) {
                     >
                       <div className="flex items-start justify-between mb-3">
                         <h3 className="text-lg font-bold text-cyan-400">{entry.accountName}</h3>
-                        <button
-                          onClick={() => handleDeleteEntry(entry.id)}
-                          className="text-red-400 hover:text-red-300 transition-colors"
-                        >
-                          <Trash2 size={20} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditEntry(entry)}
+                            className="text-green-400 hover:text-green-300 transition-colors"
+                            title="수정"
+                          >
+                            <Edit2 size={20} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEntry(entry.id)}
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                            title="삭제"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
                       </div>
 
                       {/* 아이디 */}
