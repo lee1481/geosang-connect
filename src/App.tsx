@@ -1968,7 +1968,7 @@ const App: React.FC = () => {
 
           {/* 액션 버튼들: 반응형 레이아웃 */}
           <div className="flex items-center gap-1 md:gap-2 lg:gap-3">
-            {isAdmin && (
+            {isAdmin && !isPasswordManagerView && (
               <>
                 <input type="file" ref={csvInputRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={handleCSVUpload} />
                 {/* PC: 전체 버튼, 모바일: 아이콘만 */}
