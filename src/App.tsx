@@ -684,7 +684,6 @@ const App: React.FC = () => {
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-bold text-slate-900 text-sm">{staff.name}</span>
                 {staff.department && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-black">{staff.department}</span>}
-                {isOutsource && staff.region && <span className="text-[11px] bg-emerald-600 text-white px-2.5 py-1 rounded-md font-black ml-1 shadow-sm">{staff.region}</span>}
               </div>
               <div className="text-slate-600 text-[11px] lg:text-xs flex flex-col gap-1 font-medium font-mono">
                 <a href={`tel:${staff.phone}`} className="flex items-center gap-2 hover:text-blue-600 transition-colors"><Phone size={12} className="text-slate-400" /> {staff.phone}</a>
@@ -694,6 +693,11 @@ const App: React.FC = () => {
                 {!isOutsource && staff.email && <a href={`mailto:${staff.email}`} className="flex items-center gap-2 hover:text-blue-600 transition-colors"><Mail size={12} className="text-slate-400" /> {staff.email}</a>}
                 {isOutsource && staff.features && <div className="mt-1 pt-1 border-t border-slate-200/50 text-[10px] italic text-slate-400 truncate">{staff.features}</div>}
               </div>
+              {isOutsource && staff.region && (
+                <div className="mt-2 pt-2 border-t border-slate-200/50">
+                  <span className="text-[10px] text-slate-400 font-medium">{staff.region}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
