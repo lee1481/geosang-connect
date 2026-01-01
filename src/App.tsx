@@ -28,6 +28,105 @@ const INITIAL_AUTH_USERS: AuthUser[] = [
   { id: 'admin', name: '마스터 관리자', username: 'admin', password: 'geosang777' }
 ];
 
+// 🔧 API 함수
+const contactsAPI = {
+  async create(contact: Contact) {
+    try {
+      const response = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contact)
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('API create error:', error);
+      return { success: false, error: String(error) };
+    }
+  },
+  async update(id: string, contact: Contact) {
+    try {
+      const response = await fetch(`/api/contacts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contact)
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('API update error:', error);
+      return { success: false, error: String(error) };
+    }
+  },
+  async delete(id: string) {
+    try {
+      const response = await fetch(`/api/contacts/${id}`, {
+        method: 'DELETE'
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('API delete error:', error);
+      return { success: false, error: String(error) };
+    }
+  },
+  async getAll() {
+    try {
+      const response = await fetch('/api/contacts');
+      return await response.json();
+    } catch (error) {
+      console.error('API getAll error:', error);
+      return { success: false, error: String(error) };
+    }
+  }
+};
+
+const laborClaimsAPI = {
+  async create(claim: LaborClaim) {
+    try {
+      const response = await fetch('/api/labor-claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(claim)
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('API create error:', error);
+      return { success: false, error: String(error) };
+    }
+  },
+  async update(id: string, claim: LaborClaim) {
+    try {
+      const response = await fetch(`/api/labor-claims/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(claim)
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('API update error:', error);
+      return { success: false, error: String(error) };
+    }
+  },
+  async delete(id: string) {
+    try {
+      const response = await fetch(`/api/labor-claims/${id}`, {
+        method: 'DELETE'
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('API delete error:', error);
+      return { success: false, error: String(error) };
+    }
+  },
+  async getAll() {
+    try {
+      const response = await fetch('/api/labor-claims');
+      return await response.json();
+    } catch (error) {
+      console.error('API getAll error:', error);
+      return { success: false, error: String(error) };
+    }
+  }
+};
+
 // 🔧 지점명 정규화 함수
 const normalizeStoreName = (storeName: string): string => {
   // 1. 공백 제거 및 소문자 변환
@@ -98,10 +197,7 @@ const App: React.FC = () => {
     confirmPassword: ''
   });
 
-  const [contacts, setContacts] = useState<Contact[]>(() => {
-    const saved = localStorage.getItem('geosang_contacts_v8');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.GEOSANG);
   // 검색 기능 제거됨
   
@@ -237,9 +333,23 @@ const App: React.FC = () => {
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+  // 초기 데이터 로드
   useEffect(() => {
-    localStorage.setItem('geosang_contacts_v8', JSON.stringify(contacts));
-  }, [contacts]);
+    const loadInitialData = async () => {
+      try {
+        const response = await contactsAPI.getAll();
+        if (response.success && response.data) {
+          console.log('=== 초기 데이터 로드 ===');
+          console.log('API에서 가져온 데이터:', response.data);
+          setContacts(response.data);
+        }
+      } catch (error) {
+        console.error('초기 데이터 로드 실패:', error);
+      }
+    };
+    
+    loadInitialData();
+  }, []);
 
   useEffect(() => {
     console.log('=== localStorage 저장 ===');
