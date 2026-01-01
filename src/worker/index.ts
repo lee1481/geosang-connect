@@ -222,6 +222,46 @@ app.post('/api/contacts', async (c) => {
       dbData.storeAddress, dbData.contractDate, dbData.memo
     ).run();
     
+    // 저장 후 DB에서 다시 조회하여 변환된 데이터 반환
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM contacts WHERE id = ?'
+    ).bind(body.id).all();
+    
+    if (results.length > 0) {
+      const row: any = results[0];
+      const transformed = {
+        id: row.id,
+        category: row.category,
+        brandName: row.companyName || '',
+        industry: row.industry || '',
+        subCategory: row.region || '',
+        address: row.address || '',
+        storeAddress: row.storeAddress || '',
+        phone: row.phone || '',
+        email: row.email || '',
+        bankAccount: row.memo || '',
+        franchiseBrand: row.franchiseBrand || '',
+        storeName: row.storeName || '',
+        contractDate: row.contractDate || '',
+        memo: row.memo || '',
+        staffList: [{
+          id: 's' + row.id,
+          name: row.name || '',
+          position: row.position || '',
+          phone: row.phone || '',
+          email: row.email || '',
+          department: row.department || '',
+          rating: 5,
+          region: row.region || '',
+          bankAccount: row.memo || '',
+          features: row.features || ''
+        }],
+        created_at: row.created_at,
+        updated_at: row.updated_at
+      };
+      return c.json({ success: true, data: transformed });
+    }
+    
     return c.json({ success: true, data: { id: body.id } });
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
@@ -274,6 +314,46 @@ app.put('/api/contacts/:id', async (c) => {
       dbData.region, dbData.franchiseBrand, dbData.storeName,
       dbData.storeAddress, dbData.contractDate, dbData.memo, id
     ).run();
+    
+    // 수정 후 DB에서 다시 조회하여 변환된 데이터 반환
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM contacts WHERE id = ?'
+    ).bind(id).all();
+    
+    if (results.length > 0) {
+      const row: any = results[0];
+      const transformed = {
+        id: row.id,
+        category: row.category,
+        brandName: row.companyName || '',
+        industry: row.industry || '',
+        subCategory: row.region || '',
+        address: row.address || '',
+        storeAddress: row.storeAddress || '',
+        phone: row.phone || '',
+        email: row.email || '',
+        bankAccount: row.memo || '',
+        franchiseBrand: row.franchiseBrand || '',
+        storeName: row.storeName || '',
+        contractDate: row.contractDate || '',
+        memo: row.memo || '',
+        staffList: [{
+          id: 's' + row.id,
+          name: row.name || '',
+          position: row.position || '',
+          phone: row.phone || '',
+          email: row.email || '',
+          department: row.department || '',
+          rating: 5,
+          region: row.region || '',
+          bankAccount: row.memo || '',
+          features: row.features || ''
+        }],
+        created_at: row.created_at,
+        updated_at: row.updated_at
+      };
+      return c.json({ success: true, data: transformed });
+    }
     
     return c.json({ success: true });
   } catch (error: any) {
