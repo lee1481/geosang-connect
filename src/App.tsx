@@ -179,7 +179,24 @@ const App: React.FC = () => {
   });
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     const saved = localStorage.getItem('geosang_logged_in_user_obj_v2');
-    return saved ? JSON.parse(saved) : null;
+    const loginTime = localStorage.getItem('geosang_login_time');
+    
+    if (saved && loginTime) {
+      const now = Date.now();
+      const elapsed = now - parseInt(loginTime);
+      const thirtyMinutes = 30 * 60 * 1000; // 30분 = 1800000ms
+      
+      // 30분 초과 시 자동 로그아웃
+      if (elapsed > thirtyMinutes) {
+        localStorage.removeItem('geosang_logged_in_user_obj_v2');
+        localStorage.removeItem('geosang_login_time');
+        return null;
+      }
+      
+      return JSON.parse(saved);
+    }
+    
+    return null;
   });
   
   const [loginId, setLoginId] = useState('');
@@ -287,6 +304,36 @@ const App: React.FC = () => {
     localStorage.setItem('geosang_auth_users_v2', JSON.stringify(authorizedUsers));
   }, [authorizedUsers]);
 
+  // 30분 자동 로그아웃 타이머
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const checkLoginExpiry = () => {
+      const loginTime = localStorage.getItem('geosang_login_time');
+      if (!loginTime) {
+        handleLogout();
+        return;
+      }
+
+      const now = Date.now();
+      const elapsed = now - parseInt(loginTime);
+      const thirtyMinutes = 30 * 60 * 1000; // 30분
+
+      if (elapsed > thirtyMinutes) {
+        alert('⏱️ 세션이 만료되었습니다. 다시 로그인해주세요.');
+        handleLogout();
+      }
+    };
+
+    // 1분마다 체크
+    const interval = setInterval(checkLoginExpiry, 60 * 1000);
+
+    // 초기 체크
+    checkLoginExpiry();
+
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   const isAdmin = currentUser?.id === 'admin';
 
   const handleLogin = (e: React.FormEvent) => {
@@ -294,7 +341,9 @@ const App: React.FC = () => {
     const user = authorizedUsers.find(u => u.username === loginId && u.password === loginPw);
     if (user) {
       setCurrentUser(user);
+      const loginTime = Date.now().toString();
       localStorage.setItem('geosang_logged_in_user_obj_v2', JSON.stringify(user));
+      localStorage.setItem('geosang_login_time', loginTime);
       setAuthError(false);
     } else {
       setAuthError(true);
@@ -305,6 +354,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('geosang_logged_in_user_obj_v2');
+    localStorage.removeItem('geosang_login_time');
   };
 
   // 관리자 계정 설정 변경
