@@ -600,6 +600,9 @@ const App: React.FC = () => {
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap gap-1">
               <span className="px-2 md:px-3 py-0.5 md:py-1 rounded text-[10px] md:text-[11px] font-black bg-blue-600 text-white uppercase tracking-widest shadow-sm">{contact.industry || contact.subCategory || getCategoryName(contact.category)}</span>
+              {isOutsource && contact.staffList[0]?.region && (
+                <span className="px-2 md:px-3 py-0.5 md:py-1 rounded text-[10px] md:text-[11px] font-black bg-emerald-600 text-white tracking-widest shadow-sm">{contact.staffList[0].region}</span>
+              )}
             </div>
             <h3 className="text-base md:text-lg lg:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors truncate">{isOutsource ? contact.staffList[0]?.name : contact.brandName}</h3>
             {isOutsource && contact.staffList[0]?.rating && (
@@ -691,11 +694,10 @@ const App: React.FC = () => {
                 {isOutsource && staff.residentNumber && <div className="flex items-center gap-2"><Lock size={12} className="text-slate-400" /> {staff.residentNumber}</div>}
                 {(staff.bankAccount || contact.bankAccount) && <div className="flex items-center gap-2"><CreditCard size={12} className="text-slate-400" /> {staff.bankAccount || contact.bankAccount}</div>}
                 {!isOutsource && staff.email && <a href={`mailto:${staff.email}`} className="flex items-center gap-2 hover:text-blue-600 transition-colors"><Mail size={12} className="text-slate-400" /> {staff.email}</a>}
-                {isOutsource && staff.features && <div className="mt-1 pt-1 border-t border-slate-200/50 text-[10px] italic text-slate-400 truncate">{staff.features}</div>}
               </div>
-              {isOutsource && staff.region && (
+              {isOutsource && staff.features && (
                 <div className="mt-2 pt-2 border-t border-slate-200/50">
-                  <span className="text-[10px] text-slate-400 font-medium">{staff.region}</span>
+                  <span className="text-[10px] text-slate-400 font-medium">{staff.features}</span>
                 </div>
               )}
             </div>
