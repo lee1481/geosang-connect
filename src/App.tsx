@@ -6,10 +6,11 @@ import {
   MapPin, CreditCard, FileText, Upload, ChevronRight, 
   Building2, HardHat, Coffee, Paintbrush, UtensilsCrossed,
   Layers, Filter, X, Pencil, Globe, ChevronDown, Check, Lock,
-  Wallet, Tag, Loader2, Calendar, DollarSign, Download, BarChart3, TrendingUp, FileSpreadsheet, Star, Key, ShieldCheck, UserPlus, LogOut, User, Menu, Contact2
+  Wallet, Tag, Loader2, Calendar, DollarSign, Download, BarChart3, TrendingUp, FileSpreadsheet, Star, Key, ShieldCheck, UserPlus, LogOut, User, Menu, Contact2, Shield
 } from 'lucide-react';
 import { CategoryType, Contact, Staff, ConstructionRecord, LaborClaim, WorkSite, ClaimBreakdown, Project, ProjectDocument, DocumentType } from './types';
 import { extractConstructionData, extractBusinessLicenseData, extractBusinessCardData, extractReceiptData, parseLaborClaimText, extractProjectDocument, extractExcelData, extractPDFData } from './geminiService';
+import PasswordManager from './PasswordManager';
 import * as XLSX from 'xlsx';
 
 interface AuthUser {
@@ -217,6 +218,7 @@ const App: React.FC = () => {
   const [isLaborClaimView, setIsLaborClaimView] = useState(false);
   const [isLaborClaimModalOpen, setIsLaborClaimModalOpen] = useState(false);
   const [editingClaim, setEditingClaim] = useState<LaborClaim | null>(null);
+  const [isPasswordManagerView, setIsPasswordManagerView] = useState(false);
 
   // 프로젝트 관리 (손익표)
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -1676,17 +1678,20 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto pb-8 scrollbar-hide">
-          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView} onClick={() => { setIsLaborClaimView(true); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView && !isPasswordManagerView} onClick={() => { setIsLaborClaimView(true); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          {currentUser?.username === 'admin' && (
+            <SidebarItem icon={<Shield size={18} />} label="🔐 비밀번호 관리" active={isPasswordManagerView} onClick={() => { setIsPasswordManagerView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          )}
 
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
-          <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<UtensilsCrossed size={18} />} label="자영업(매출처)" active={activeCategory === CategoryType.SALES && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<UtensilsCrossed size={18} />} label="자영업(매출처)" active={activeCategory === CategoryType.SALES && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
         </nav>
 
         <div className="p-4 border-t border-white/5 space-y-2">
@@ -1720,17 +1725,20 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-0.5 overflow-y-auto pb-8 scrollbar-hide">
-          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView} onClick={() => { setIsLaborClaimView(true); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Users size={18} />} label="거상 조직도" active={activeCategory === CategoryType.GEOSANG && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.GEOSANG); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<HardHat size={18} />} label="외주팀 관리" active={activeCategory === CategoryType.OUTSOURCE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OUTSOURCE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<DollarSign size={18} />} label="💰 인건비 청구" active={isLaborClaimView && !isPasswordManagerView} onClick={() => { setIsLaborClaimView(true); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          {currentUser?.username === 'admin' && (
+            <SidebarItem icon={<Shield size={18} />} label="🔐 비밀번호 관리" active={isPasswordManagerView} onClick={() => { setIsPasswordManagerView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          )}
 
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
-          <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<UtensilsCrossed size={18} />} label="자영업(매출처)" active={activeCategory === CategoryType.SALES && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Paintbrush size={18} />} label="인테리어" active={activeCategory === CategoryType.INTERIOR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.INTERIOR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<UtensilsCrossed size={18} />} label="자영업(매출처)" active={activeCategory === CategoryType.SALES && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.SALES); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Settings size={18} />} label="기타 거래처" active={activeCategory === CategoryType.OTHERS && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.OTHERS); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
         </nav>
 
         <div className="p-4 border-t border-white/5 space-y-2">
@@ -1796,7 +1804,9 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {isLaborClaimView ? (
+        {isPasswordManagerView ? (
+          <PasswordManager currentUser={currentUser} />
+        ) : isLaborClaimView ? (
           <LaborClaimView 
             claims={laborClaims}
             outsourceWorkers={contacts.filter(c => c.category === CategoryType.OUTSOURCE)}
