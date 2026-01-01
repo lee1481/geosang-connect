@@ -1778,7 +1778,7 @@ const App: React.FC = () => {
                 {/* PC: 전체 버튼, 모바일: 아이콘만 */}
                 <button 
                   onClick={() => csvInputRef.current?.click()} 
-                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-white border-2 border-emerald-500 text-emerald-600 rounded-lg md:rounded-xl hover:bg-emerald-50 shadow-sm font-bold flex items-center gap-2" 
+                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-slate-800 border-2 border-emerald-500 text-emerald-400 rounded-lg md:rounded-xl hover:bg-slate-700 shadow-sm font-bold flex items-center gap-2" 
                   title="파일업로드"
                 >
                   <Upload size={16} className="md:w-[18px] md:h-[18px]" /> 
@@ -1786,7 +1786,7 @@ const App: React.FC = () => {
                 </button>
                 <button 
                   onClick={handleCSVDownload} 
-                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-white border-2 border-blue-500 text-blue-600 rounded-lg md:rounded-xl hover:bg-blue-50 shadow-sm font-bold flex items-center gap-2" 
+                  className="p-2 md:p-2.5 md:px-3 lg:px-4 bg-slate-800 border-2 border-blue-500 text-blue-400 rounded-lg md:rounded-xl hover:bg-slate-700 shadow-sm font-bold flex items-center gap-2" 
                   title="다운로드"
                 >
                   <Download size={16} className="md:w-[18px] md:h-[18px]" /> 
