@@ -606,9 +606,28 @@ const App: React.FC = () => {
         }
       }
       
-      setContacts(prev => [...prev, ...newContacts]);
-      alert(`✅ ${newContacts.length}개 항목 자동 등록 완료!\n\n파일: ${file.name}\n카테고리: ${getCategoryName(activeCategory)}`);
-      if (event.target) event.target.value = '';
+      // API로 저장 (비동기)
+      const savePromises = newContacts.map(async (contact) => {
+        try {
+          const response = await contactsAPI.create(contact);
+          if (response.success) {
+            return response.data;
+          } else {
+            console.error('CSV 업로드 저장 실패:', contact.id, response.error);
+            return null;
+          }
+        } catch (error) {
+          console.error('CSV 업로드 저장 오류:', contact.id, error);
+          return null;
+        }
+      });
+      
+      Promise.all(savePromises).then((results) => {
+        const savedContacts = results.filter(c => c !== null);
+        setContacts(prev => [...prev, ...savedContacts]);
+        alert(`✅ ${savedContacts.length}개 항목이 데이터베이스에 저장되었습니다!\n\n파일: ${file.name}\n카테고리: ${getCategoryName(activeCategory)}`);
+        if (event.target) event.target.value = '';
+      });
     };
     
     if (isExcel) {
