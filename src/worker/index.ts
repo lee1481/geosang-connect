@@ -10,7 +10,37 @@ const app = new Hono<{ Bindings: Bindings }>();
 // 자동 마이그레이션: 앱 시작 시 테이블 스키마 확인 및 생성
 app.use('*', async (c, next) => {
   try {
-    // contacts 테이블의 컬럼 확인
+    // 1. authorized_users 테이블 확인 및 생성 (CRITICAL for login!)
+    try {
+      const { results: authTableCheck } = await c.env.DB.prepare('SELECT name FROM sqlite_master WHERE type="table" AND name="authorized_users"').all();
+      
+      if (authTableCheck.length === 0) {
+        console.log('📦 Creating authorized_users table...');
+        
+        await c.env.DB.prepare(`
+          CREATE TABLE authorized_users (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+        
+        // admin 계정 생성
+        await c.env.DB.prepare(`
+          INSERT INTO authorized_users (id, name, username, password)
+          VALUES ('admin', '관리자', 'admin', 'geosang777')
+        `).run();
+        
+        console.log('✅ authorized_users table created with admin account!');
+      }
+    } catch (authError: any) {
+      console.error('❌ Error creating authorized_users table:', authError);
+    }
+    
+    // 2. contacts 테이블의 컬럼 확인
     const { results } = await c.env.DB.prepare('PRAGMA table_info(contacts)').all();
     
     // brandName 컬럼이 없으면 마이그레이션 필요
@@ -108,21 +138,29 @@ app.post('/api/auth/login', async (c) => {
   try {
     const { username, password } = await c.req.json();
     
+    console.log('🔐 Login attempt:', { username });
+    
     const { results } = await c.env.DB.prepare(
       'SELECT * FROM authorized_users WHERE username = ? AND password = ?'
     ).bind(username, password).all();
 
+    console.log('📊 Query results:', results.length);
+
     if (results.length === 0) {
-      return c.json({ error: '인증 실패' }, 401);
+      console.log('❌ Login failed: invalid credentials');
+      return c.json({ success: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401);
     }
 
     const user: any = results[0];
+    console.log('✅ Login successful:', user.username);
+    
     return c.json({
       success: true,
       user: { id: user.id, name: user.name, username: user.username }
     });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error('💥 Login error:', error);
+    return c.json({ success: false, error: '로그인 중 오류가 발생했습니다: ' + error.message }, 500);
   }
 });
 

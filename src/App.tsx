@@ -204,6 +204,7 @@ const App: React.FC = () => {
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAdminSettingsModalOpen, setIsAdminSettingsModalOpen] = useState(false);
   const [authError, setAuthError] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // 관리자 계정 설정 상태
@@ -348,18 +349,37 @@ const App: React.FC = () => {
 
   const isAdmin = currentUser?.id === 'admin';
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = authorizedUsers.find(u => u.username === loginId && u.password === loginPw);
-    if (user) {
-      setCurrentUser(user);
-      const loginTime = Date.now().toString();
-      localStorage.setItem('geosang_logged_in_user_obj_v2', JSON.stringify(user));
-      localStorage.setItem('geosang_login_time', loginTime);
-      setAuthError(false);
-    } else {
+    setIsLoggingIn(true);
+    
+    try {
+      // API로 직접 로그인 인증 (모바일 호환성 개선)
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginId, password: loginPw })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.user) {
+        setCurrentUser(result.user);
+        const loginTime = Date.now().toString();
+        localStorage.setItem('geosang_logged_in_user_obj_v2', JSON.stringify(result.user));
+        localStorage.setItem('geosang_login_time', loginTime);
+        setAuthError(false);
+        // 로그인 성공 후 입력란 유지 (자동 로그아웃 시에만 초기화)
+      } else {
+        setAuthError(true);
+        setLoginPw('');
+      }
+    } catch (error) {
+      console.error('로그인 오류:', error);
       setAuthError(true);
       setLoginPw('');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -1997,7 +2017,21 @@ const App: React.FC = () => {
               </div>
             </div>
             {authError && <p className="text-red-400 text-[10px] font-black animate-pulse">정보가 올바르지 않습니다.</p>}
-            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl sm:rounded-2xl font-black text-sm shadow-xl shadow-blue-600/20 transition-all active:scale-[0.98] mt-4">로그인</button>
+            <button 
+              type="submit" 
+              disabled={isLoggingIn}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl sm:rounded-2xl font-black text-sm shadow-xl shadow-blue-600/20 transition-all active:scale-[0.98] mt-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoggingIn ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  로그인 중...
+                </>
+              ) : '로그인'}
+            </button>
           </form>
         </div>
       </div>
