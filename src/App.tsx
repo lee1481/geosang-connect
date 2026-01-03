@@ -265,6 +265,17 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        // Authorized Users 로드
+        const authResponse = await fetch('/api/auth/users');
+        if (authResponse.ok) {
+          const authResult = await authResponse.json();
+          if (authResult.success && authResult.data) {
+            console.log('=== Auth Users 초기 데이터 로드 ===');
+            console.log('API에서 가져온 사용자:', authResult.data);
+            setAuthorizedUsers(authResult.data);
+          }
+        }
+        
         // Contacts 로드
         const contactsResponse = await contactsAPI.getAll();
         if (contactsResponse.success && contactsResponse.data) {
@@ -300,9 +311,10 @@ const App: React.FC = () => {
     localStorage.setItem('geosang_projects_v1', JSON.stringify(projects));
   }, [projects]);
 
-  useEffect(() => {
-    localStorage.setItem('geosang_auth_users_v2', JSON.stringify(authorizedUsers));
-  }, [authorizedUsers]);
+  // authorizedUsers는 이제 API에서 로드되므로 localStorage 저장 불필요
+  // useEffect(() => {
+  //   localStorage.setItem('geosang_auth_users_v2', JSON.stringify(authorizedUsers));
+  // }, [authorizedUsers]);
 
   // 30분 자동 로그아웃 타이머
   useEffect(() => {
@@ -415,22 +427,61 @@ const App: React.FC = () => {
     });
   };
 
-  const handleAddAuthUser = (name: string, username: string, pw: string) => {
+  const handleAddAuthUser = async (name: string, username: string, pw: string) => {
     if (!name || !username || !pw) return;
     if (authorizedUsers.some(u => u.username === username)) {
       alert('이미 존재하는 아이디입니다.');
       return;
     }
+    
     const newUser = { id: Date.now().toString(), name, username, password: pw };
-    setAuthorizedUsers(prev => [...prev, newUser]);
+    
+    try {
+      // API로 데이터베이스에 저장
+      const response = await fetch('/api/auth/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setAuthorizedUsers(prev => [...prev, newUser]);
+        alert('✅ 계정이 성공적으로 등록되었습니다!');
+      } else {
+        alert('❌ 계정 등록 실패: ' + result.error);
+      }
+    } catch (error) {
+      console.error('계정 등록 오류:', error);
+      alert('❌ 계정 등록 중 오류가 발생했습니다.');
+    }
   };
 
-  const handleRevokeAccess = (id: string) => {
+  const handleRevokeAccess = async (id: string) => {
     if (id === 'admin') {
       alert('마스터 관리자 계정은 삭제할 수 없습니다.');
       return;
     }
-    setAuthorizedUsers(prev => prev.filter(u => u.id !== id));
+    
+    try {
+      // API로 데이터베이스에서 삭제
+      const response = await fetch(`/api/auth/users/${id}`, {
+        method: 'DELETE'
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setAuthorizedUsers(prev => prev.filter(u => u.id !== id));
+        alert('✅ 계정이 삭제되었습니다.');
+      } else {
+        alert('❌ 계정 삭제 실패: ' + result.error);
+      }
+    } catch (error) {
+      console.error('계정 삭제 오류:', error);
+      alert('❌ 계정 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   const handleGlobalRenameItem = (oldName: string, newName: string, type: 'DEPT' | 'INDUSTRY' | 'OUTSOURCE') => {
