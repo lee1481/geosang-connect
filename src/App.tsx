@@ -262,50 +262,62 @@ const App: React.FC = () => {
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+  // 데이터 로드 함수 (재사용 가능)
+  const loadData = async () => {
+    try {
+      console.log('🔄 데이터 새로고침 중...');
+      
+      // Authorized Users 로드
+      const authResponse = await fetch('/api/auth/users');
+      if (authResponse.ok) {
+        const authResult = await authResponse.json();
+        if (authResult.success && authResult.data) {
+          setAuthorizedUsers(authResult.data);
+        }
+      }
+      
+      // Contacts 로드
+      const contactsResponse = await contactsAPI.getAll();
+      if (contactsResponse.success && contactsResponse.data) {
+        // 모든 주민번호를 문자열로 변환
+        const sanitizedContacts = contactsResponse.data.map((contact: any) => ({
+          ...contact,
+          staffList: contact.staffList?.map((staff: any) => ({
+            ...staff,
+            residentNumber: staff.residentNumber ? String(staff.residentNumber) : staff.residentNumber
+          }))
+        }));
+        setContacts(sanitizedContacts);
+        console.log('✅ Contacts 새로고침 완료:', sanitizedContacts.length, '개');
+      }
+      
+      // Labor Claims 로드
+      const laborClaimsResponse = await laborClaimsAPI.getAll();
+      if (laborClaimsResponse.success && laborClaimsResponse.data) {
+        setLaborClaims(laborClaimsResponse.data);
+      }
+    } catch (error) {
+      console.error('❌ 데이터 로드 실패:', error);
+    }
+  };
+
   // 초기 데이터 로드
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        // Authorized Users 로드
-        const authResponse = await fetch('/api/auth/users');
-        if (authResponse.ok) {
-          const authResult = await authResponse.json();
-          if (authResult.success && authResult.data) {
-            console.log('=== Auth Users 초기 데이터 로드 ===');
-            console.log('API에서 가져온 사용자:', authResult.data);
-            setAuthorizedUsers(authResult.data);
-          }
-        }
-        
-        // Contacts 로드
-        const contactsResponse = await contactsAPI.getAll();
-        if (contactsResponse.success && contactsResponse.data) {
-          console.log('=== Contacts 초기 데이터 로드 ===');
-          console.log('API에서 가져온 데이터:', contactsResponse.data);
-          // 모든 주민번호를 문자열로 변환
-          const sanitizedContacts = contactsResponse.data.map((contact: any) => ({
-            ...contact,
-            staffList: contact.staffList?.map((staff: any) => ({
-              ...staff,
-              residentNumber: staff.residentNumber ? String(staff.residentNumber) : staff.residentNumber
-            }))
-          }));
-          setContacts(sanitizedContacts);
-        }
-        
-        // Labor Claims 로드
-        const laborClaimsResponse = await laborClaimsAPI.getAll();
-        if (laborClaimsResponse.success && laborClaimsResponse.data) {
-          console.log('=== Labor Claims 초기 데이터 로드 ===');
-          console.log('API에서 가져온 데이터:', laborClaimsResponse.data);
-          setLaborClaims(laborClaimsResponse.data);
-        }
-      } catch (error) {
-        console.error('초기 데이터 로드 실패:', error);
-      }
+    loadData();
+  }, []);
+
+  // 윈도우 포커스 시 데이터 새로고침 (PC/모바일 동기화)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('👁️ 윈도우 포커스 감지 - 데이터 새로고침');
+      loadData();
     };
     
-    loadInitialData();
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   useEffect(() => {
@@ -2353,7 +2365,33 @@ const App: React.FC = () => {
             {/* 반응형 그리드: 모바일 1열, 태블릿 2열, PC 3열 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5 lg:gap-8 pb-20">
               {filteredContacts.map(contact => (
-                <ContactCard key={contact.id} contact={contact} canManage={isAdmin} onEdit={() => { setEditingContact(contact); setIsModalOpen(true); }} onDelete={() => { if(confirm('삭제하시겠습니까?')) setContacts(prev => prev.filter(c => c.id !== contact.id)) }} />
+                <ContactCard 
+                  key={contact.id} 
+                  contact={contact} 
+                  canManage={isAdmin} 
+                  onEdit={() => { 
+                    setEditingContact(contact); 
+                    setIsModalOpen(true); 
+                  }} 
+                  onDelete={async () => { 
+                    if(confirm('삭제하시겠습니까?')) {
+                      try {
+                        // API로 DB에서 삭제
+                        const response = await contactsAPI.delete(contact.id);
+                        if (response.success) {
+                          // 로컬 state 업데이트
+                          setContacts(prev => prev.filter(c => c.id !== contact.id));
+                          alert('✅ 삭제되었습니다.');
+                        } else {
+                          alert('❌ 삭제 실패: ' + response.error);
+                        }
+                      } catch (error) {
+                        console.error('삭제 오류:', error);
+                        alert('❌ 삭제 중 오류가 발생했습니다.');
+                      }
+                    }
+                  }} 
+                />
               ))}
             </div>
           </section>
