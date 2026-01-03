@@ -203,15 +203,36 @@ app.put('/api/auth/users/:id', async (c) => {
     const id = c.req.param('id');
     const { name, username, password, currentPassword } = await c.req.json();
     
+    console.log('🔄 Updating user:', { id, username, hasCurrentPassword: !!currentPassword, hasNewPassword: !!password });
+    
     // 현재 비밀번호 확인
     if (currentPassword) {
+      console.log('🔐 Verifying current password for user:', id);
+      
       const { results } = await c.env.DB.prepare(
-        'SELECT id FROM authorized_users WHERE id = ? AND password = ?'
-      ).bind(id, currentPassword).all();
+        'SELECT id, username, password FROM authorized_users WHERE id = ?'
+      ).bind(id).all();
+      
+      console.log('📊 User found:', results.length > 0);
       
       if (results.length === 0) {
-        return c.json({ error: '현재 비밀번호가 일치하지 않습니다.' }, 401);
+        console.log('❌ User not found in database');
+        return c.json({ success: false, error: '사용자를 찾을 수 없습니다.' }, 404);
       }
+      
+      const user: any = results[0];
+      console.log('🔍 Password check:', { 
+        providedPassword: currentPassword, 
+        dbPassword: user.password, 
+        match: user.password === currentPassword 
+      });
+      
+      if (user.password !== currentPassword) {
+        console.log('❌ Password mismatch');
+        return c.json({ success: false, error: '현재 비밀번호가 일치하지 않습니다.' }, 401);
+      }
+      
+      console.log('✅ Password verified');
     }
     
     // 업데이트
@@ -233,13 +254,18 @@ app.put('/api/auth/users/:id', async (c) => {
     updates.push('updated_at = CURRENT_TIMESTAMP');
     bindings.push(id);
     
+    console.log('💾 Updating fields:', updates);
+    
     await c.env.DB.prepare(`
       UPDATE authorized_users SET ${updates.join(', ')} WHERE id = ?
     `).bind(...bindings).run();
     
+    console.log('✅ Update successful');
+    
     return c.json({ success: true });
   } catch (error: any) {
-    return c.json({ error: error.message }, 500);
+    console.error('💥 Update error:', error);
+    return c.json({ success: false, error: error.message }, 500);
   }
 });
 

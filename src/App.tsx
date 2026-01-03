@@ -392,15 +392,8 @@ const App: React.FC = () => {
   };
 
   // 관리자 계정 설정 변경
-  const handleAdminSettings = () => {
+  const handleAdminSettings = async () => {
     const { currentPassword, newId, newPassword, confirmPassword } = adminSettingsForm;
-    
-    // 현재 비밀번호 확인
-    const adminUser = authorizedUsers.find(u => u.id === 'admin');
-    if (!adminUser || adminUser.password !== currentPassword) {
-      alert('❌ 현재 비밀번호가 일치하지 않습니다.');
-      return;
-    }
     
     // 새 비밀번호 확인
     if (newPassword && newPassword !== confirmPassword) {
@@ -408,43 +401,59 @@ const App: React.FC = () => {
       return;
     }
     
-    // 새 아이디가 기존 사용자와 중복되는지 확인 (admin 제외)
-    if (newId && newId !== 'admin' && authorizedUsers.some(u => u.username === newId && u.id !== 'admin')) {
-      alert('❌ 이미 존재하는 아이디입니다.');
-      return;
-    }
-    
-    // 관리자 계정 업데이트
-    const updatedUsers = authorizedUsers.map(u => {
-      if (u.id === 'admin') {
-        return {
-          ...u,
-          username: newId || u.username,
-          password: newPassword || u.password
+    try {
+      // API로 관리자 계정 업데이트 (현재 비밀번호 검증 포함)
+      const response = await fetch('/api/auth/users/admin', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          username: newId || undefined,
+          password: newPassword || undefined
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        alert('❌ ' + (result.error || '계정 변경 실패'));
+        return;
+      }
+      
+      // authorizedUsers 새로고침
+      const usersResponse = await fetch('/api/auth/users');
+      const usersResult = await usersResponse.json();
+      if (usersResult.success) {
+        setAuthorizedUsers(usersResult.data.map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          username: u.username,
+          password: '' // 비밀번호는 보안상 빈 문자열
+        })));
+      }
+      
+      // 현재 로그인한 사용자도 업데이트
+      if (currentUser?.id === 'admin') {
+        const updatedUser = {
+          ...currentUser,
+          username: newId || currentUser.username
         };
+        setCurrentUser(updatedUser);
+        localStorage.setItem('geosang_logged_in_user_obj_v2', JSON.stringify(updatedUser));
       }
-      return u;
-    });
-    
-    setAuthorizedUsers(updatedUsers);
-    
-    // 현재 로그인한 사용자도 업데이트
-    if (currentUser?.id === 'admin') {
-      const updatedAdmin = updatedUsers.find(u => u.id === 'admin');
-      if (updatedAdmin) {
-        setCurrentUser(updatedAdmin);
-        localStorage.setItem('geosang_logged_in_user_obj_v2', JSON.stringify(updatedAdmin));
-      }
+      
+      alert('✅ 관리자 계정이 성공적으로 변경되었습니다!');
+      setIsAdminSettingsModalOpen(false);
+      setAdminSettingsForm({
+        currentPassword: '',
+        newId: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error) {
+      console.error('관리자 설정 변경 오류:', error);
+      alert('❌ 계정 변경 중 오류가 발생했습니다.');
     }
-    
-    alert('✅ 관리자 계정이 성공적으로 변경되었습니다!');
-    setIsAdminSettingsModalOpen(false);
-    setAdminSettingsForm({
-      currentPassword: '',
-      newId: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
   };
 
   const handleAddAuthUser = async (name: string, username: string, pw: string) => {
