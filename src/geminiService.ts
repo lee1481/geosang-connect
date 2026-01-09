@@ -2,7 +2,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 // API 키 가져오기 (Vite 환경 변수)
 const getApiKey = () => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  // 환경 변수에서 API 키 가져오기
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyBHiHgtP9f0gjWJOe97ezxd6N5Qc4OgNgk'; // UPDATED: Fallback to hardcoded key
   if (!apiKey || apiKey === 'your-gemini-api-key-here') {
     console.warn('⚠️ Gemini API 키가 설정되지 않았습니다. .env 파일에 VITE_GEMINI_API_KEY를 설정해주세요.');
     return null;
