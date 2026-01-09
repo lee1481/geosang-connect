@@ -1963,50 +1963,7 @@ const App: React.FC = () => {
                 ))}
               </div>
             </div>
-            
-            <div className="border-t-2 border-slate-100 pt-6 lg:pt-8">
-              <div className="flex justify-between items-center mb-4 lg:mb-6">
-                <h3 className="text-lg lg:text-xl font-black">첨부파일</h3>
-                <div className="flex items-center gap-2">
-                  <input type="file" ref={attachmentInputRef} className="hidden" multiple onChange={handleAttachmentUpload} />
-                  <button 
-                    type="button" 
-                    onClick={() => attachmentInputRef.current?.click()}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-blue-700 transition-all"
-                  >
-                    <Upload size={14}/> 파일 첨부
-                  </button>
-                </div>
-              </div>
-              
-              {formData.attachments && formData.attachments.length > 0 && (
-                <div className="space-y-2">
-                  {formData.attachments.map((file, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <FileText size={16} className="text-blue-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-slate-900 truncate">{file.name}</div>
-                        <div className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(1)} KB</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAttachment(idx)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {(!formData.attachments || formData.attachments.length === 0) && (
-                <div className="text-center py-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-                  <Upload size={24} className="mx-auto text-slate-300 mb-2" />
-                  <p className="text-xs text-slate-400">첨부파일이 없습니다</p>
-                </div>
-              )}
-            </div>
+
             
             <button type="submit" className="w-full bg-blue-600 text-white py-4 lg:py-5 rounded-2xl lg:rounded-[1.5rem] font-black text-sm lg:text-lg shadow-xl hover:bg-blue-700 transition-all sticky bottom-0 z-10">저장하기</button>
           </form>
