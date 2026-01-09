@@ -2561,30 +2561,43 @@ const App: React.FC = () => {
             setIsLaborClaimModalOpen(false);
             setEditingClaim(null); // 모달 닫을 때 editingClaim 초기화
           }}
-          onSubmit={(claim: LaborClaim) => {
+          onSubmit={async (claim: LaborClaim) => {
             console.log('=== onSubmit 호출됨 ===');
             console.log('받은 claim 데이터:', claim);
             console.log('editingClaim:', editingClaim);
             
-            if (editingClaim) {
-              console.log('수정 모드: 기존 청구 업데이트');
-              setLaborClaims(prev => {
-                const updated = prev.map(c => c.id === claim.id ? claim : c);
-                console.log('업데이트된 laborClaims:', updated);
-                return updated;
-              });
-            } else {
-              console.log('등록 모드: 새 청구 추가');
-              setLaborClaims(prev => {
-                const newClaims = [...prev, claim];
-                console.log('새로운 laborClaims:', newClaims);
-                return newClaims;
-              });
+            try {
+              if (editingClaim) {
+                console.log('수정 모드: 기존 청구 업데이트');
+                setLaborClaims(prev => {
+                  const updated = prev.map(c => c.id === claim.id ? claim : c);
+                  console.log('업데이트된 laborClaims:', updated);
+                  return updated;
+                });
+              } else {
+                console.log('등록 모드: 새 청구 추가');
+                // API로 DB에 저장
+                const response = await laborClaimsAPI.create(claim);
+                if (response.success) {
+                  setLaborClaims(prev => {
+                    const newClaims = [...prev, claim];
+                    console.log('새로운 laborClaims:', newClaims);
+                    return newClaims;
+                  });
+                  alert('✅ 인건비 청구가 등록되었습니다.');
+                } else {
+                  alert('❌ 등록 실패: ' + response.error);
+                  return;
+                }
+              }
+              
+              console.log('모달 닫기');
+              setIsLaborClaimModalOpen(false);
+              setEditingClaim(null); // 등록/수정 후 editingClaim 초기화
+            } catch (error) {
+              console.error('인건비 청구 등록 오류:', error);
+              alert('❌ 등록 중 오류가 발생했습니다.');
             }
-            
-            console.log('모달 닫기');
-            setIsLaborClaimModalOpen(false);
-            setEditingClaim(null); // 등록/수정 후 editingClaim 초기화
           }}
           initialData={editingClaim}
           outsourceWorkers={contacts.filter(c => c.category === CategoryType.OUTSOURCE)}
