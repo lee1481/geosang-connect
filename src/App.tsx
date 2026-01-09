@@ -1545,32 +1545,39 @@ const App: React.FC = () => {
     };
 
     const handleStaffChange = (index: number, field: keyof Staff, value: any) => {
-      const newList = [...(formData.staffList || [])];
-      newList[index] = { ...newList[index], [field]: value };
-      setFormData({ ...formData, staffList: newList });
+      setFormData(prev => {
+        const newList = [...(prev.staffList || [])];
+        newList[index] = { ...newList[index], [field]: value };
+        return { ...prev, staffList: newList };
+      });
     };
 
     const addStaff = () => {
-      setFormData({ ...formData, staffList: [...(formData.staffList || []), { 
-        id: 's' + Date.now(), 
-        name: '', 
-        position: '', 
-        phone: '', 
-        email: '', 
-        department: showDepartmentFeature ? (selectedDepartment || departments[0] || '') : '', 
-        rating: 5,
-        region: '',
-        bankAccount: '',
-        residentNumber: '',
-        features: ''
-      }] });
+      setFormData(prev => ({
+        ...prev,
+        staffList: [...(prev.staffList || []), { 
+          id: 's' + Date.now(), 
+          name: '', 
+          position: '', 
+          phone: '', 
+          email: '', 
+          department: showDepartmentFeature ? (selectedDepartment || departments[0] || '') : '', 
+          rating: 5,
+          region: '',
+          bankAccount: '',
+          residentNumber: '',
+          features: ''
+        }]
+      }));
     };
 
     const removeStaff = (index: number) => {
-      if ((formData.staffList?.length || 0) <= 1) return;
-      const newList = [...(formData.staffList || [])];
-      newList.splice(index, 1);
-      setFormData({ ...formData, staffList: newList });
+      setFormData(prev => {
+        if ((prev.staffList?.length || 0) <= 1) return prev;
+        const newList = [...(prev.staffList || [])];
+        newList.splice(index, 1);
+        return { ...prev, staffList: newList };
+      });
     };
 
     const inputClasses = "w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 lg:py-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none bg-white text-slate-900 font-bold text-xs lg:text-sm transition-all";
@@ -1884,14 +1891,14 @@ const App: React.FC = () => {
                   </div>
                 )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData({...formData, brandName: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData(prev => ({...prev, brandName: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
                   <div className="lg:col-span-2">{renderItemManagement(industries, 'INDUSTRY')}</div>
-                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData({...formData, phone2: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData({...formData, homepage: e.target.value})} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData({...formData, bankAccount: e.target.value})} placeholder="은행명 계좌번호 예금주" disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData(prev => ({...prev, address: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData(prev => ({...prev, phone2: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData(prev => ({...prev, email: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData(prev => ({...prev, homepage: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData(prev => ({...prev, bankAccount: e.target.value}))} placeholder="은행명 계좌번호 예금주" disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
                 </div>
               </div>
             )}
