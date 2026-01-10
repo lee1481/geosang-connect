@@ -5,7 +5,7 @@ import {
   Settings, Search, Plus, Trash2, Phone, Mail, 
   MapPin, CreditCard, FileText, Upload, ChevronRight, 
   Building2, HardHat, Coffee, Paintbrush, UtensilsCrossed,
-  Layers, Filter, X, Pencil, Globe, ChevronDown, Check, Lock,
+  Layers, Filter, X, Pencil, Globe, ChevronDown, ChevronUp, Check, Lock,
   Wallet, Tag, Loader2, Calendar, DollarSign, Download, BarChart3, TrendingUp, FileSpreadsheet, Star, Key, ShieldCheck, UserPlus, LogOut, User, Menu, Contact2, Shield, Info
 } from 'lucide-react';
 import { CategoryType, Contact, Staff, ConstructionRecord, LaborClaim, WorkSite, ClaimBreakdown, Project, ProjectDocument, DocumentType } from './types';
@@ -23,6 +23,10 @@ interface AuthUser {
 const DEFAULT_DEPARTMENTS = ['총무팀', '관리팀', '디자인팀', '시공팀', '감리팀', '영업팀', '제작팀', '마케팅팀'];
 const DEFAULT_INDUSTRIES = ['프랜차이즈', '기업', '요식업', '공장', '부동산/건설', '미용/헬스', '병원/약국', '학원', '교육업', '인테리어'];
 const DEFAULT_OUTSOURCE_TYPES = ['시공일당', '크레인'];
+
+// 거상 조직도 전용 상수
+const DEFAULT_GEOSANG_COMPANY_TYPES = ['프랜차이즈', '기업', '요식업', '공장', '병원'];
+const DEFAULT_GEOSANG_DEPARTMENTS = ['관리부', '총무부', '디자인팀', '제작팀', '시공팀', '마케팅팀', '영업팀'];
 
 const INITIAL_AUTH_USERS: AuthUser[] = [
   { id: 'admin', name: '마스터 관리자', username: 'admin', password: 'geosang777' }
@@ -232,6 +236,12 @@ const App: React.FC = () => {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   
+  // 거상 조직도 전용 모달 state
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false); // 회사 등록 모달
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false); // 직원 등록 모달
+  const [selectedCompany, setSelectedCompany] = useState<Contact | null>(null); // 선택된 회사
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set()); // 확장된 회사 ID들
+  
   const [departments, setDepartments] = useState<string[]>(() => {
     const saved = localStorage.getItem('geosang_departments_v3');
     return saved ? JSON.parse(saved) : DEFAULT_DEPARTMENTS;
@@ -245,6 +255,17 @@ const App: React.FC = () => {
   const [outsourceTypes, setOutsourceTypes] = useState<string[]>(() => {
     const saved = localStorage.getItem('outsource_types_v3');
     return saved ? JSON.parse(saved) : DEFAULT_OUTSOURCE_TYPES;
+  });
+
+  // 거상 조직도 전용 state
+  const [geosangCompanyTypes, setGeosangCompanyTypes] = useState<string[]>(() => {
+    const saved = localStorage.getItem('geosang_company_types_v1');
+    return saved ? JSON.parse(saved) : DEFAULT_GEOSANG_COMPANY_TYPES;
+  });
+
+  const [geosangDepartments, setGeosangDepartments] = useState<string[]>(() => {
+    const saved = localStorage.getItem('geosang_departments_custom_v1');
+    return saved ? JSON.parse(saved) : DEFAULT_GEOSANG_DEPARTMENTS;
   });
 
   // 인건비 청구 관리
@@ -310,7 +331,7 @@ const App: React.FC = () => {
   // 단, 모달이 열려 있을 때는 새로고침하지 않음
   useEffect(() => {
     const handleFocus = () => {
-      if (!isModalOpen && !isLaborClaimModalOpen) {
+      if (!isModalOpen && !isLaborClaimModalOpen && !isCompanyModalOpen && !isStaffModalOpen) {
         console.log('👁️ 윈도우 포커스 감지 - 데이터 새로고침');
         loadData();
       }
@@ -321,13 +342,13 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, [isModalOpen, isLaborClaimModalOpen]);
+  }, [isModalOpen, isLaborClaimModalOpen, isCompanyModalOpen, isStaffModalOpen]);
 
   // 실시간 동기화: 5초마다 자동 새로고침
   // 단, 모달이 열려 있을 때는 새로고침하지 않음
   useEffect(() => {
     const syncInterval = setInterval(() => {
-      if (!isModalOpen && !isLaborClaimModalOpen) {
+      if (!isModalOpen && !isLaborClaimModalOpen && !isCompanyModalOpen && !isStaffModalOpen) {
         console.log('🔄 실시간 동기화: 5초 자동 새로고침');
         loadData();
       }
@@ -336,7 +357,7 @@ const App: React.FC = () => {
     return () => {
       clearInterval(syncInterval);
     };
-  }, [isModalOpen, isLaborClaimModalOpen]); // 모달 상태 변경 시 interval 재설정
+  }, [isModalOpen, isLaborClaimModalOpen, isCompanyModalOpen, isStaffModalOpen]); // 모달 상태 변경 시 interval 재설정
 
   useEffect(() => {
     localStorage.setItem('geosang_projects_v1', JSON.stringify(projects));
@@ -1448,7 +1469,343 @@ const App: React.FC = () => {
     );
   };
 
-  const ContactFormModal = ({ onClose, onSubmit, currentCategory, initialData, departments, industries, outsourceTypes, onAddDept, onAddIndustry, onAddOutsourceType, onRenameItem, isAdmin }: any) => {
+  // 거상 조직도 전용: 회사 등록 모달
+  const CompanyModal = ({ onClose, onSubmit, initialData, geosangCompanyTypes, setGeosangCompanyTypes, isAdmin }: any) => {
+    const [formData, setFormData] = useState(() => {
+      if (initialData) return { ...initialData };
+      return {
+        id: Date.now().toString(),
+        category: CategoryType.GEOSANG,
+        brandName: '',
+        industry: '',
+        address: '',
+        phone: '',
+        phone2: '',
+        email: '',
+        homepage: '',
+        bankAccount: '',
+        staffList: []
+      };
+    });
+
+    const [newItemInput, setNewItemInput] = useState('');
+    
+    // 슬라이드 네비게이션 바 상태 관리 (회사 등록 모달용)
+    const [companyScrollThumbTop, setCompanyScrollThumbTop] = useState(0);
+
+    // 스크롤 이벤트 리스너 (회사 등록 모달용)
+    useEffect(() => {
+      const modal = document.getElementById('company-form-modal');
+      if (!modal) return;
+
+      const handleScroll = () => {
+        const scrollPercentage = modal.scrollTop / (modal.scrollHeight - modal.clientHeight);
+        const trackHeight = 300;
+        const thumbHeight = 60;
+        const maxThumbTop = trackHeight - thumbHeight;
+        setCompanyScrollThumbTop(scrollPercentage * maxThumbTop);
+      };
+
+      modal.addEventListener('scroll', handleScroll);
+      handleScroll();
+      
+      return () => modal.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // 썸 드래그 핸들러 (회사 등록 모달용)
+    const handleCompanyThumbMouseDown = (e: React.MouseEvent) => {
+      e.preventDefault();
+      const startY = e.clientY;
+      const startThumbTop = companyScrollThumbTop;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const deltaY = moveEvent.clientY - startY;
+        const trackHeight = 300;
+        const thumbHeight = 60;
+        const maxThumbTop = trackHeight - thumbHeight;
+        
+        let newThumbTop = startThumbTop + deltaY;
+        newThumbTop = Math.max(0, Math.min(newThumbTop, maxThumbTop));
+        
+        const scrollPercentage = newThumbTop / maxThumbTop;
+        const modal = document.getElementById('company-form-modal');
+        if (modal) {
+          modal.scrollTop = scrollPercentage * (modal.scrollHeight - modal.clientHeight);
+        }
+      };
+
+      const handleMouseUp = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    };
+    
+    const inputClasses = "w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 lg:py-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none bg-white text-slate-900 font-bold text-xs lg:text-sm transition-all";
+    const labelClasses = "block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1";
+
+    const renderCompanyTypeManagement = () => {
+      return (
+        <div className="bg-slate-50 p-4 lg:p-6 rounded-2xl border border-slate-200 space-y-3">
+          <label className={labelClasses}>회사 구분 *</label>
+          <div className="flex flex-wrap gap-1.5">
+            {geosangCompanyTypes.map((item: string) => (
+              <div key={item} className="relative group">
+                <button 
+                  type="button" 
+                  onClick={() => setFormData({...formData, industry: item})}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] lg:text-xs font-black border-2 transition-all ${formData.industry === item ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
+                >
+                  {item}
+                </button>
+                {isAdmin && (
+                  <div className="absolute -top-3 -right-3 hidden group-hover:flex gap-1 z-20">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newName = prompt(`'${item}' 항목의 이름을 수정하시겠습니까?`, item);
+                        if (newName && newName !== item) {
+                          const newTypes = geosangCompanyTypes.map((t: string) => t === item ? newName : t);
+                          setGeosangCompanyTypes(newTypes);
+                          localStorage.setItem('geosang_company_types_v1', JSON.stringify(newTypes));
+                        }
+                      }}
+                      className="bg-blue-600 text-white p-1.5 rounded-full shadow-xl hover:bg-blue-700 transition-all border-2 border-white hover:scale-110"
+                      title="이름 수정"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`'${item}' 항목을 삭제하시겠습니까?`)) {
+                          const newTypes = geosangCompanyTypes.filter((t: string) => t !== item);
+                          setGeosangCompanyTypes(newTypes);
+                          localStorage.setItem('geosang_company_types_v1', JSON.stringify(newTypes));
+                        }
+                      }}
+                      className="bg-red-600 text-white p-1.5 rounded-full shadow-xl hover:bg-red-700 transition-all border-2 border-white hover:scale-110"
+                      title="삭제"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {isAdmin && (
+            <div className="flex gap-2 pt-2">
+              <input 
+                className="flex-1 bg-white border-2 border-slate-200 rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none" 
+                placeholder="직접 추가..." 
+                value={newItemInput} 
+                onChange={e => setNewItemInput(e.target.value)} 
+                onKeyPress={e => { 
+                  if(e.key === 'Enter') { 
+                    e.preventDefault(); 
+                    if(newItemInput) { 
+                      const newTypes = [...geosangCompanyTypes, newItemInput];
+                      setGeosangCompanyTypes(newTypes);
+                      localStorage.setItem('geosang_company_types_v1', JSON.stringify(newTypes));
+                      setNewItemInput(''); 
+                    } 
+                  } 
+                }} 
+              />
+              <button 
+                type="button" 
+                onClick={() => { 
+                  if(newItemInput) { 
+                    const newTypes = [...geosangCompanyTypes, newItemInput];
+                    setGeosangCompanyTypes(newTypes);
+                    localStorage.setItem('geosang_company_types_v1', JSON.stringify(newTypes));
+                    setNewItemInput(''); 
+                  } 
+                }} 
+                className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black hover:bg-slate-800 transition-all"
+              >
+                추가
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    return (
+      <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-2 lg:p-6">
+        <div className="bg-white rounded-3xl lg:rounded-[3rem] w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl p-6 lg:p-10 scrollbar-hide relative" id="company-form-modal">
+          <div className="flex justify-between items-center mb-6 lg:mb-8">
+            <h2 className="text-xl lg:text-3xl font-black tracking-tight flex items-center gap-3">
+              <Building2 size={28} className="text-blue-600" />
+              {initialData ? '회사 정보 수정' : '회사 등록'}
+            </h2>
+            <button onClick={onClose} className="p-2 bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all">
+              <X size={20}/>
+            </button>
+          </div>
+          
+          <form onSubmit={e => { 
+            e.preventDefault();
+            if (!formData.brandName?.trim()) {
+              alert('❌ 회사명은 필수 입력입니다.');
+              return;
+            }
+            if (!formData.industry) {
+              alert('❌ 회사 구분을 선택해주세요.');
+              return;
+            }
+            onSubmit(formData);
+          }} className="space-y-6">
+            {/* 회사 구분 */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 lg:p-8 rounded-3xl border-2 border-blue-200">
+              {renderCompanyTypeManagement()}
+            </div>
+
+            {/* 회사 기본 정보 */}
+            <div className="space-y-4">
+              <div>
+                <label className={labelClasses}>회사명 *</label>
+                <input 
+                  className={inputClasses} 
+                  value={formData.brandName} 
+                  onChange={e => setFormData({...formData, brandName: e.target.value})} 
+                  placeholder="회사명을 입력하세요"
+                  required
+                />
+              </div>
+              <div>
+                <label className={labelClasses}>주소</label>
+                <input 
+                  className={inputClasses} 
+                  value={formData.address} 
+                  onChange={e => setFormData({...formData, address: e.target.value})} 
+                  placeholder="회사 주소를 입력하세요"
+                />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClasses}>이메일</label>
+                  <input 
+                    className={inputClasses} 
+                    value={formData.email} 
+                    onChange={e => setFormData({...formData, email: e.target.value})} 
+                    placeholder="company@example.com"
+                  />
+                </div>
+                <div>
+                  <label className={labelClasses}>홈페이지</label>
+                  <input 
+                    className={inputClasses} 
+                    value={formData.homepage} 
+                    onChange={e => setFormData({...formData, homepage: e.target.value})} 
+                    placeholder="https://example.com"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClasses}>대표번호 1</label>
+                  <input 
+                    className={inputClasses} 
+                    value={formData.phone} 
+                    onChange={e => setFormData({...formData, phone: e.target.value})} 
+                    placeholder="02-1234-5678"
+                  />
+                </div>
+                <div>
+                  <label className={labelClasses}>대표번호 2</label>
+                  <input 
+                    className={inputClasses} 
+                    value={formData.phone2} 
+                    onChange={e => setFormData({...formData, phone2: e.target.value})} 
+                    placeholder="02-8765-4321"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={labelClasses}>계좌번호</label>
+                <input 
+                  className={inputClasses} 
+                  value={formData.bankAccount} 
+                  onChange={e => setFormData({...formData, bankAccount: e.target.value})} 
+                  placeholder="은행명 계좌번호 예금주"
+                />
+              </div>
+            </div>
+
+            {/* 저장 버튼 */}
+            <div className="flex gap-3 pt-4">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="flex-1 py-3 lg:py-4 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-2xl font-black text-sm lg:text-base transition-all"
+              >
+                취소
+              </button>
+              <button 
+                type="submit" 
+                className="flex-1 py-3 lg:py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-sm lg:text-base shadow-lg shadow-blue-200 transition-all"
+              >
+                {initialData ? '수정 완료' : '회사 등록'}
+              </button>
+            </div>
+          </form>
+        </div>
+        
+        {/* 우측 슬라이드 네비게이션 바 - 회사 등록 모달 */}
+        <div 
+          className="fixed top-1/2 -translate-y-1/2 w-3 bg-slate-300/50 rounded-full shadow-lg z-[110]" 
+          style={{right: '560px', height: '300px'}}
+        >
+          {/* 위로 버튼 */}
+          <button
+            type="button"
+            className="absolute -top-10 left-1/2 -translate-x-1/2 p-2 bg-slate-600/90 rounded-full hover:bg-slate-700 transition-all shadow-lg"
+            onClick={() => {
+              const modal = document.getElementById('company-form-modal');
+              if (modal) {
+                modal.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+            title="맨 위로"
+          >
+            <ChevronUp size={16} className="text-white" />
+          </button>
+          
+          {/* 드래그 가능한 썸 */}
+          <div 
+            className="absolute left-0 w-full bg-blue-600/90 rounded-full cursor-grab active:cursor-grabbing transition-colors hover:bg-blue-700 shadow-md"
+            style={{height: '60px', top: `${companyScrollThumbTop}px`}}
+            onMouseDown={handleCompanyThumbMouseDown}
+            title="드래그하여 스크롤"
+          />
+          
+          {/* 아래로 버튼 */}
+          <button
+            type="button"
+            className="absolute -bottom-10 left-1/2 -translate-x-1/2 p-2 bg-slate-600/90 rounded-full hover:bg-slate-700 transition-all shadow-lg"
+            onClick={() => {
+              const modal = document.getElementById('company-form-modal');
+              if (modal) {
+                modal.scrollTo({ top: modal.scrollHeight, behavior: 'smooth' });
+              }
+            }}
+            title="맨 아래로"
+          >
+            <ChevronDown size={16} className="text-white" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const ContactFormModal = ({ onClose, onSubmit, currentCategory, initialData, departments, industries, outsourceTypes, geosangCompanyTypes, geosangDepartments, onAddDept, onAddIndustry, onAddOutsourceType, onRenameItem, isAdmin }: any) => {
     const isGeosang = (initialData?.category || currentCategory) === CategoryType.GEOSANG;
     const isOutsource = (initialData?.category || currentCategory) === CategoryType.OUTSOURCE;
     const isPurchase = (initialData?.category || currentCategory) === CategoryType.PURCHASE;
@@ -1463,6 +1820,61 @@ const App: React.FC = () => {
     
     const showDepartmentFeature = !isOutsource;
     const attachmentInputRef = useRef<HTMLInputElement>(null);
+
+    const staffModalRef = useRef<HTMLDivElement>(null);
+    
+    // 슬라이드 네비게이션 바 상태 관리
+    const [staffScrollThumbTop, setStaffScrollThumbTop] = useState(0);
+
+    // 스크롤 이벤트 리스너 (거상 인원 등록 모달용)
+    useEffect(() => {
+      const modal = staffModalRef.current;
+      if (!modal) return;
+
+      const handleScroll = () => {
+        const scrollPercentage = modal.scrollTop / (modal.scrollHeight - modal.clientHeight);
+        const trackHeight = 300;
+        const thumbHeight = 60;
+        const maxThumbTop = trackHeight - thumbHeight;
+        setStaffScrollThumbTop(scrollPercentage * maxThumbTop);
+      };
+
+      modal.addEventListener('scroll', handleScroll);
+      handleScroll();
+      
+      return () => modal.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // 썸 드래그 핸들러 (거상 인원 등록 모달용)
+    const handleStaffThumbMouseDown = (e: React.MouseEvent) => {
+      e.preventDefault();
+      const startY = e.clientY;
+      const startThumbTop = staffScrollThumbTop;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const deltaY = moveEvent.clientY - startY;
+        const trackHeight = 300;
+        const thumbHeight = 60;
+        const maxThumbTop = trackHeight - thumbHeight;
+        
+        let newThumbTop = startThumbTop + deltaY;
+        newThumbTop = Math.max(0, Math.min(newThumbTop, maxThumbTop));
+        
+        const scrollPercentage = newThumbTop / maxThumbTop;
+        const modal = staffModalRef.current;
+        if (modal) {
+          modal.scrollTop = scrollPercentage * (modal.scrollHeight - modal.clientHeight);
+        }
+      };
+
+      const handleMouseUp = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    };
 
     // 카테고리별 회사 정보 localStorage 키 (프랜차이즈 본사 제외)
     const getCompanyInfoKey = (category: CategoryType) => {
@@ -1666,10 +2078,16 @@ const App: React.FC = () => {
     const inputClasses = "w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 lg:py-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none bg-white text-slate-900 font-bold text-xs lg:text-sm transition-all";
     const labelClasses = "block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1";
 
-    const renderItemManagement = (items: string[], type: 'DEPT' | 'INDUSTRY' | 'OUTSOURCE') => {
+    const renderItemManagement = (items: string[], type: 'DEPT' | 'INDUSTRY' | 'OUTSOURCE' | 'COMPANY_TYPE' | 'GEOSANG_DEPT') => {
       const isSelected = (item: string) => {
         if (type === 'DEPT') return selectedDepartment === item;
         if (type === 'INDUSTRY') return formData.industry === item;
+        if (type === 'COMPANY_TYPE') return formData.industry === item; // 거상 조직도 회사 구분
+        if (type === 'GEOSANG_DEPT') {
+          // 현재 직원 카드의 부서 선택
+          const lastStaff = formData.staffList?.[formData.staffList.length - 1];
+          return lastStaff?.department === item;
+        }
         return formData.subCategory === item;
       };
       
@@ -1684,6 +2102,14 @@ const App: React.FC = () => {
             const newInds = industries.filter(i => i !== item);
             setIndustries(newInds);
             localStorage.setItem('geosang_industries_v2', JSON.stringify(newInds));
+          } else if (type === 'COMPANY_TYPE') {
+            const newTypes = geosangCompanyTypes.filter(t => t !== item);
+            setGeosangCompanyTypes(newTypes);
+            localStorage.setItem('geosang_company_types_v1', JSON.stringify(newTypes));
+          } else if (type === 'GEOSANG_DEPT') {
+            const newDepts = geosangDepartments.filter(d => d !== item);
+            setGeosangDepartments(newDepts);
+            localStorage.setItem('geosang_departments_custom_v1', JSON.stringify(newDepts));
           } else {
             const newTypes = outsourceTypes.filter(t => t !== item);
             setOutsourceTypes(newTypes);
@@ -1705,6 +2131,14 @@ const App: React.FC = () => {
             const newInds = industries.map(i => i === item ? newName : i);
             setIndustries(newInds);
             localStorage.setItem('geosang_industries_v2', JSON.stringify(newInds));
+          } else if (type === 'COMPANY_TYPE') {
+            const newTypes = geosangCompanyTypes.map(t => t === item ? newName : t);
+            setGeosangCompanyTypes(newTypes);
+            localStorage.setItem('geosang_company_types_v1', JSON.stringify(newTypes));
+          } else if (type === 'GEOSANG_DEPT') {
+            const newDepts = geosangDepartments.map(d => d === item ? newName : d);
+            setGeosangDepartments(newDepts);
+            localStorage.setItem('geosang_departments_custom_v1', JSON.stringify(newDepts));
           } else {
             const newTypes = outsourceTypes.map(t => t === item ? newName : t);
             setOutsourceTypes(newTypes);
@@ -1715,7 +2149,13 @@ const App: React.FC = () => {
       
       return (
         <div className="bg-slate-50 p-4 lg:p-6 rounded-2xl border border-slate-200 space-y-3">
-          <label className={labelClasses}>{type === 'DEPT' ? '팀 선택' : (type === 'INDUSTRY' ? '업종' : '구분')}</label>
+          <label className={labelClasses}>
+            {type === 'DEPT' ? '팀 선택' : 
+             type === 'INDUSTRY' ? '업종' : 
+             type === 'COMPANY_TYPE' ? '회사 구분 *' :
+             type === 'GEOSANG_DEPT' ? '부서 *' :
+             '구분'}
+          </label>
           <div className="flex flex-wrap gap-1.5">
             {items.map(item => (
               <div key={item} className="relative group">
@@ -1725,8 +2165,11 @@ const App: React.FC = () => {
                     if (type === 'DEPT') { 
                       setSelectedDepartment(item); 
                       handleStaffChange(formData.staffList!.length - 1, 'department', item); 
-                    } else if (type === 'INDUSTRY') {
+                    } else if (type === 'INDUSTRY' || type === 'COMPANY_TYPE') {
                       setFormData({...formData, industry: item}); 
+                    } else if (type === 'GEOSANG_DEPT') {
+                      // 현재 마지막 직원의 부서 설정
+                      handleStaffChange(formData.staffList!.length - 1, 'department', item);
                     } else {
                       setFormData({...formData, subCategory: item});
                     }
@@ -1736,22 +2179,22 @@ const App: React.FC = () => {
                   {item}
                 </button>
                 {isAdmin && (
-                  <div className="absolute -top-2 -right-2 hidden group-hover:flex gap-0.5 z-10">
+                  <div className="absolute -top-3 -right-3 hidden group-hover:flex gap-1 z-20">
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleEditItem(item); }}
-                      className="bg-blue-600 text-white p-1 rounded-md shadow-lg hover:bg-blue-700 transition-all"
+                      className="bg-blue-600 text-white p-1.5 rounded-full shadow-xl hover:bg-blue-700 transition-all border-2 border-white hover:scale-110"
                       title="이름 수정"
                     >
-                      <Pencil size={10} />
+                      <Pencil size={11} />
                     </button>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleDeleteItem(item); }}
-                      className="bg-red-600 text-white p-1 rounded-md shadow-lg hover:bg-red-700 transition-all"
+                      className="bg-red-600 text-white p-1.5 rounded-full shadow-xl hover:bg-red-700 transition-all border-2 border-white hover:scale-110"
                       title="삭제"
                     >
-                      <X size={10} />
+                      <X size={11} />
                     </button>
                   </div>
                 )}
@@ -1760,8 +2203,57 @@ const App: React.FC = () => {
           </div>
           {isAdmin && (
             <div className="flex gap-2 pt-2">
-              <input className="flex-1 bg-white border-2 border-slate-200 rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none" placeholder="직접 추가..." value={newItemInput} onChange={e => setNewItemInput(e.target.value)} onKeyPress={e => { if(e.key === 'Enter') { e.preventDefault(); if(newItemInput) { if (type === 'DEPT') onAddDept(newItemInput); else if (type === 'INDUSTRY') onAddIndustry(newItemInput); else onAddOutsourceType(newItemInput); setNewItemInput(''); } } }} />
-              <button type="button" onClick={() => { if(newItemInput) { if (type === 'DEPT') onAddDept(newItemInput); else if (type === 'INDUSTRY') onAddIndustry(newItemInput); else onAddOutsourceType(newItemInput); setNewItemInput(''); } }} className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black hover:bg-slate-800 transition-all">추가</button>
+              <input 
+                className="flex-1 bg-white border-2 border-slate-200 rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none" 
+                placeholder="직접 추가..." 
+                value={newItemInput} 
+                onChange={e => setNewItemInput(e.target.value)} 
+                onKeyPress={e => { 
+                  if(e.key === 'Enter') { 
+                    e.preventDefault(); 
+                    if(newItemInput) { 
+                      if (type === 'DEPT') onAddDept(newItemInput); 
+                      else if (type === 'INDUSTRY') onAddIndustry(newItemInput); 
+                      else if (type === 'COMPANY_TYPE') {
+                        const newTypes = [...geosangCompanyTypes, newItemInput];
+                        setGeosangCompanyTypes(newTypes);
+                        localStorage.setItem('geosang_company_types_v1', JSON.stringify(newTypes));
+                      }
+                      else if (type === 'GEOSANG_DEPT') {
+                        const newDepts = [...geosangDepartments, newItemInput];
+                        setGeosangDepartments(newDepts);
+                        localStorage.setItem('geosang_departments_custom_v1', JSON.stringify(newDepts));
+                      }
+                      else onAddOutsourceType(newItemInput); 
+                      setNewItemInput(''); 
+                    } 
+                  } 
+                }} 
+              />
+              <button 
+                type="button" 
+                onClick={() => { 
+                  if(newItemInput) { 
+                    if (type === 'DEPT') onAddDept(newItemInput); 
+                    else if (type === 'INDUSTRY') onAddIndustry(newItemInput); 
+                    else if (type === 'COMPANY_TYPE') {
+                      const newTypes = [...geosangCompanyTypes, newItemInput];
+                      setGeosangCompanyTypes(newTypes);
+                      localStorage.setItem('geosang_company_types_v1', JSON.stringify(newTypes));
+                    }
+                    else if (type === 'GEOSANG_DEPT') {
+                      const newDepts = [...geosangDepartments, newItemInput];
+                      setGeosangDepartments(newDepts);
+                      localStorage.setItem('geosang_departments_custom_v1', JSON.stringify(newDepts));
+                    }
+                    else onAddOutsourceType(newItemInput); 
+                    setNewItemInput(''); 
+                  } 
+                }} 
+                className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black hover:bg-slate-800 transition-all"
+              >
+                추가
+              </button>
             </div>
           )}
         </div>
@@ -1770,7 +2262,7 @@ const App: React.FC = () => {
 
     return (
       <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-2 lg:p-6">
-        <div className="bg-white rounded-3xl lg:rounded-[3rem] w-full max-w-3xl max-h-[95vh] overflow-y-auto shadow-2xl p-6 lg:p-10 scrollbar-hide">
+        <div ref={staffModalRef} className="bg-white rounded-3xl lg:rounded-[3rem] w-full max-w-3xl max-h-[95vh] overflow-y-auto shadow-2xl p-6 lg:p-10 scrollbar-hide relative">
           <div className="flex justify-between items-center mb-6 lg:mb-8">
             <h2 className="text-xl lg:text-3xl font-black tracking-tight">{isGeosang ? '거상 인원 등록' : '정보 등록'}</h2>
             <button onClick={onClose} className="p-2 bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all"><X size={20}/></button>
@@ -1808,8 +2300,180 @@ const App: React.FC = () => {
             console.log('staffList:', formData.staffList);
             onSubmit(formData); 
           }} className="space-y-6 lg:space-y-8">
+            {/* 거상 조직도 전용 UI */}
+            {isGeosang && (
+              <>
+                {/* 회사 정보 카드 */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 lg:p-8 rounded-3xl border-2 border-blue-200 shadow-sm relative">
+                  <h3 className="text-lg lg:text-xl font-black text-blue-900 mb-6 flex items-center gap-2">
+                    <Building2 size={24} className="text-blue-600" />
+                    회사 정보
+                  </h3>
+                  
+                  {/* 회사 구분 선택 */}
+                  <div className="mb-6">
+                    {renderItemManagement(geosangCompanyTypes, 'COMPANY_TYPE')}
+                  </div>
+                  
+                  {/* 회사 기본 정보 입력 */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                    <div className="lg:col-span-2">
+                      <label className={labelClasses}>회사명</label>
+                      <input 
+                        className={inputClasses} 
+                        value={formData.brandName} 
+                        onChange={e => setFormData(prev => ({...prev, brandName: e.target.value}))} 
+                        placeholder="회사명을 입력하세요"
+                        required
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <label className={labelClasses}>주소</label>
+                      <input 
+                        className={inputClasses} 
+                        value={formData.address} 
+                        onChange={e => setFormData(prev => ({...prev, address: e.target.value}))} 
+                        placeholder="회사 주소를 입력하세요"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <label className={labelClasses}>이메일</label>
+                      <input 
+                        className={inputClasses} 
+                        value={formData.email} 
+                        onChange={e => setFormData(prev => ({...prev, email: e.target.value}))} 
+                        placeholder="company@example.com"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <label className={labelClasses}>홈페이지</label>
+                      <input 
+                        className={inputClasses} 
+                        value={formData.homepage} 
+                        onChange={e => setFormData(prev => ({...prev, homepage: e.target.value}))} 
+                        placeholder="https://example.com"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <label className={labelClasses}>대표번호 1</label>
+                      <input 
+                        className={inputClasses} 
+                        value={formData.phone} 
+                        onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))} 
+                        placeholder="02-1234-5678"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <label className={labelClasses}>대표번호 2</label>
+                      <input 
+                        className={inputClasses} 
+                        value={formData.phone2} 
+                        onChange={e => setFormData(prev => ({...prev, phone2: e.target.value}))} 
+                        placeholder="02-8765-4321"
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <label className={labelClasses}>계좌번호</label>
+                      <input 
+                        className={inputClasses} 
+                        value={formData.bankAccount} 
+                        onChange={e => setFormData(prev => ({...prev, bankAccount: e.target.value}))} 
+                        placeholder="은행명 계좌번호 예금주"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 직원 정보 카드들 */}
+                <div id="staff-info-section" className="border-t-2 border-slate-200 pt-6 lg:pt-8 scroll-mt-20">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg lg:text-xl font-black text-slate-900 flex items-center gap-2">
+                      <Users size={24} className="text-blue-600" />
+                      직원 정보
+                    </h3>
+                    <button 
+                      type="button" 
+                      onClick={addStaff} 
+                      className="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"
+                    >
+                      <Plus size={16}/> 인원 추가
+                    </button>
+                  </div>
+
+                  {/* 직원 카드 리스트 */}
+                  <div className="space-y-4">
+                    {formData.staffList?.map((staff, idx) => (
+                      <div key={idx} className="bg-gradient-to-br from-slate-50 to-gray-50 p-6 lg:p-8 rounded-2xl border-2 border-slate-200 shadow-sm relative">
+                        {formData.staffList!.length > 1 && (
+                          <button 
+                            type="button" 
+                            onClick={() => removeStaff(idx)} 
+                            className="absolute top-4 right-4 p-2 bg-red-100 text-red-600 hover:bg-red-600 hover:text-white rounded-full transition-all"
+                            title="삭제"
+                          >
+                            <Trash2 size={18}/>
+                          </button>
+                        )}
+                        
+                        {/* 부서 선택 */}
+                        <div className="mb-6">
+                          <label className={labelClasses}>부서 구분 *</label>
+                          {renderItemManagement(geosangDepartments, 'GEOSANG_DEPT')}
+                        </div>
+
+                        {/* 직원 기본 정보 */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="col-span-1">
+                            <label className={labelClasses}>이름 *</label>
+                            <input 
+                              className={inputClasses} 
+                              value={staff.name || ''} 
+                              onChange={e => handleStaffChange(idx, 'name', e.target.value)} 
+                              placeholder="이름을 입력하세요"
+                              required 
+                            />
+                          </div>
+                          <div className="col-span-1">
+                            <label className={labelClasses}>직함</label>
+                            <input 
+                              className={inputClasses} 
+                              value={staff.position || ''} 
+                              onChange={e => handleStaffChange(idx, 'position', e.target.value)} 
+                              placeholder="직함을 입력하세요"
+                            />
+                          </div>
+                          <div className="col-span-1">
+                            <label className={labelClasses}>이메일</label>
+                            <input 
+                              className={inputClasses} 
+                              value={staff.email || ''} 
+                              onChange={e => handleStaffChange(idx, 'email', e.target.value)} 
+                              placeholder="example@company.com"
+                            />
+                          </div>
+                          <div className="col-span-1">
+                            <label className={labelClasses}>핸드폰번호 *</label>
+                            <input 
+                              className={inputClasses} 
+                              value={staff.phone || ''} 
+                              onChange={e => handleStaffChange(idx, 'phone', e.target.value)} 
+                              placeholder="010-1234-5678"
+                              required 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* 외주팀 관리 UI */}
             {isOutsource && renderItemManagement(outsourceTypes, 'OUTSOURCE')}
-            {!isOutsource && (
+            
+            {/* 다른 카테고리 UI */}
+            {!isGeosang && !isOutsource && (
               <div className="space-y-4 lg:space-y-6">
                 {(isGeosang || isPartnerNetwork) && !isFranchiseHQ && ( // UPDATED: 다른 카테고리용
                   <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-xl border border-blue-200">
@@ -1888,10 +2552,53 @@ const App: React.FC = () => {
                 ))}
               </div>
             </div>
-
             
             <button type="submit" className="w-full bg-blue-600 text-white py-4 lg:py-5 rounded-2xl lg:rounded-[1.5rem] font-black text-sm lg:text-lg shadow-xl hover:bg-blue-700 transition-all sticky bottom-0 z-10">저장하기</button>
           </form>
+        </div>
+        
+        {/* 우측 슬라이드 네비게이션 바 - 거상 인원 등록 모달 */}
+        <div 
+          className="fixed top-1/2 -translate-y-1/2 w-3 bg-slate-300/50 rounded-full shadow-lg z-[110]" 
+          style={{right: '560px', height: '300px'}}
+        >
+          {/* 위로 버튼 */}
+          <button
+            type="button"
+            className="absolute -top-10 left-1/2 -translate-x-1/2 p-2 bg-slate-600/90 rounded-full hover:bg-slate-700 transition-all shadow-lg"
+            onClick={() => {
+              const modal = staffModalRef.current;
+              if (modal) {
+                modal.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+            title="맨 위로"
+          >
+            <ChevronUp size={16} className="text-white" />
+          </button>
+          
+          {/* 드래그 가능한 썸 */}
+          <div 
+            className="absolute left-0 w-full bg-blue-600/90 rounded-full cursor-grab active:cursor-grabbing transition-colors hover:bg-blue-700 shadow-md"
+            style={{height: '60px', top: `${staffScrollThumbTop}px`}}
+            onMouseDown={handleStaffThumbMouseDown}
+            title="드래그하여 스크롤"
+          />
+          
+          {/* 아래로 버튼 */}
+          <button
+            type="button"
+            className="absolute -bottom-10 left-1/2 -translate-x-1/2 p-2 bg-slate-600/90 rounded-full hover:bg-slate-700 transition-all shadow-lg"
+            onClick={() => {
+              const modal = staffModalRef.current;
+              if (modal) {
+                modal.scrollTo({ top: modal.scrollHeight, behavior: 'smooth' });
+              }
+            }}
+            title="맨 아래로"
+          >
+            <ChevronDown size={16} className="text-white" />
+          </button>
         </div>
       </div>
     );
@@ -2105,6 +2812,16 @@ const App: React.FC = () => {
                   <span className="hidden md:inline text-xs lg:text-sm">다운로드</span>
                 </button>
               </>
+            )}
+            {/* 거상 조직도는 회사 등록 버튼 */}
+            {!isLaborClaimView && !isPasswordManagerView && activeCategory === CategoryType.GEOSANG && (
+              <button 
+                onClick={() => { setEditingContact(null); setIsCompanyModalOpen(true); }} 
+                className="bg-blue-600 text-white px-3 md:px-4 lg:px-5 py-2 md:py-2.5 lg:py-3 rounded-lg md:rounded-xl font-bold hover:bg-blue-700 flex items-center gap-1.5 md:gap-2 shadow-lg shadow-blue-100 flex-shrink-0"
+              >
+                <Building2 size={18} className="md:w-5 md:h-5" /> 
+                <span className="text-xs md:text-sm">회사 등록</span>
+              </button>
             )}
             {/* 외주팀 관리는 신규등록 버튼 유지 */}
             {!isLaborClaimView && !isPasswordManagerView && activeCategory === CategoryType.OUTSOURCE && (
@@ -2370,6 +3087,44 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      {/* 거상 조직도 전용: 회사 등록 모달 */}
+      {isCompanyModalOpen && (
+        <CompanyModal
+          onClose={() => setIsCompanyModalOpen(false)}
+          onSubmit={async (companyData: Contact) => {
+            try {
+              if (editingContact) {
+                // 회사 수정
+                const response = await contactsAPI.update(companyData.id, companyData);
+                if (response.success) {
+                  setContacts(prev => prev.map(c => c.id === companyData.id ? { ...companyData, staffList: c.staffList } : c));
+                  setIsCompanyModalOpen(false);
+                  alert('✅ 회사 정보가 수정되었습니다.');
+                } else {
+                  alert('❌ 수정 실패: ' + response.error);
+                }
+              } else {
+                // 회사 신규 등록
+                const response = await contactsAPI.create(companyData);
+                if (response.success) {
+                  setContacts(prev => [...prev, companyData]);
+                  setIsCompanyModalOpen(false);
+                  alert('✅ 회사가 등록되었습니다.');
+                } else {
+                  alert('❌ 등록 실패: ' + response.error);
+                }
+              }
+            } catch (error) {
+              console.error('회사 저장 실패:', error);
+              alert('❌ 저장 중 오류가 발생했습니다.');
+            }
+          }}
+          initialData={editingContact}
+          geosangCompanyTypes={geosangCompanyTypes}
+          setGeosangCompanyTypes={setGeosangCompanyTypes}
+          isAdmin={isAdmin}
+        />
+      )}
       {isModalOpen && (
         <ContactFormModal 
           onClose={() => setIsModalOpen(false)} 
@@ -2475,9 +3230,18 @@ const App: React.FC = () => {
               alert('저장 중 오류가 발생했습니다.');
             }
           }}
-          currentCategory={activeCategory} initialData={editingContact} departments={departments} industries={industries} outsourceTypes={outsourceTypes}
-          onAddDept={(dept: string) => setDepartments(prev => [...prev, dept])} onAddIndustry={(ind: string) => setIndustries(prev => [...prev, ind])} onAddOutsourceType={(type: string) => setOutsourceTypes(prev => [...prev, type])}
-          onRenameItem={handleGlobalRenameItem} isAdmin={isAdmin}
+          currentCategory={activeCategory} 
+          initialData={editingContact} 
+          departments={departments} 
+          industries={industries} 
+          outsourceTypes={outsourceTypes}
+          geosangCompanyTypes={geosangCompanyTypes}
+          geosangDepartments={geosangDepartments}
+          onAddDept={(dept: string) => setDepartments(prev => [...prev, dept])} 
+          onAddIndustry={(ind: string) => setIndustries(prev => [...prev, ind])} 
+          onAddOutsourceType={(type: string) => setOutsourceTypes(prev => [...prev, type])}
+          onRenameItem={handleGlobalRenameItem} 
+          isAdmin={isAdmin}
         />
       )}
       {isLaborClaimModalOpen && (
