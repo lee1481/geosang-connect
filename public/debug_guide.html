@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>외주팀 입력 오류 디버깅 가이드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
+        <h1 class="text-3xl font-bold text-blue-600 mb-6">🔍 외주팀 입력 오류 디버깅 가이드</h1>
+        
+        <div class="space-y-6">
+            <section class="bg-blue-50 p-6 rounded-lg">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">1️⃣ 브라우저 콘솔 열기</h2>
+                <p class="text-gray-700 mb-2">브라우저에서 <kbd class="bg-gray-200 px-2 py-1 rounded">F12</kbd> 키를 누르거나</p>
+                <p class="text-gray-700">우클릭 → <strong>검사</strong> → <strong>Console</strong> 탭 클릭</p>
+            </section>
+
+            <section class="bg-green-50 p-6 rounded-lg">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">2️⃣ 외주팀 관리 페이지 접속</h2>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li>좌측 메뉴에서 <strong>외주팀 관리</strong> 클릭</li>
+                    <li>우측 상단 <strong>신규등록</strong> 버튼 클릭</li>
+                    <li>콘솔에 표시되는 메시지 확인</li>
+                </ol>
+            </section>
+
+            <section class="bg-yellow-50 p-6 rounded-lg">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">3️⃣ 입력 테스트</h2>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li><strong>이름/상호</strong> 입력창에 "테스트" 입력</li>
+                    <li>입력한 글씨가 사라지는지 확인</li>
+                    <li>콘솔에 에러 메시지가 표시되는지 확인</li>
+                    <li>스크린샷 찍기 (콘솔 포함)</li>
+                </ol>
+            </section>
+
+            <section class="bg-red-50 p-6 rounded-lg">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">4️⃣ 확인해야 할 콘솔 메시지</h2>
+                <div class="space-y-3 text-gray-700">
+                    <p class="font-mono text-sm bg-white p-3 rounded border">
+                        ❌ Invalid staff index: ...
+                    </p>
+                    <p class="font-mono text-sm bg-white p-3 rounded border">
+                        TypeError: Cannot read property '...' of undefined
+                    </p>
+                    <p class="font-mono text-sm bg-white p-3 rounded border">
+                        React Warning: A component is changing an uncontrolled input...
+                    </p>
+                </div>
+            </section>
+
+            <section class="bg-purple-50 p-6 rounded-lg">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">5️⃣ 보고할 정보</h2>
+                <ul class="list-disc list-inside space-y-2 text-gray-700">
+                    <li>어떤 필드에서 문제 발생? (이름/상호, 연락처, 활동지역 등)</li>
+                    <li>글씨를 입력하면 즉시 사라지나요? 아니면 잠시 후 사라지나요?</li>
+                    <li>콘솔에 어떤 에러 메시지가 표시되나요?</li>
+                    <li>스크린샷 (콘솔 포함)</li>
+                </ul>
+            </section>
+        </div>
+
+        <div class="mt-8 p-6 bg-gray-800 text-white rounded-lg">
+            <h3 class="text-lg font-bold mb-2">📱 문제 재현 방법</h3>
+            <p class="text-sm">
+                1. 외주팀 관리 > 신규등록 클릭<br>
+                2. 이름/상호 입력창에 "테스트" 입력<br>
+                3. 문제 발생 시 콘솔 확인<br>
+                4. 스크린샷 공유
+            </p>
+        </div>
+
+        <a href="/" class="mt-6 inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700">
+            ← 메인 페이지로 돌아가기
+        </a>
+    </div>
+</body>
+</html>

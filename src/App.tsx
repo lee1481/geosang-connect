@@ -307,10 +307,13 @@ const App: React.FC = () => {
   }, []);
 
   // 윈도우 포커스 시 데이터 새로고침 (PC/모바일 동기화)
+  // 단, 모달이 열려 있을 때는 새로고침하지 않음
   useEffect(() => {
     const handleFocus = () => {
-      console.log('👁️ 윈도우 포커스 감지 - 데이터 새로고침');
-      loadData();
+      if (!isModalOpen && !isLaborClaimModalOpen) {
+        console.log('👁️ 윈도우 포커스 감지 - 데이터 새로고침');
+        loadData();
+      }
     };
     
     window.addEventListener('focus', handleFocus);
@@ -318,19 +321,22 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [isModalOpen, isLaborClaimModalOpen]);
 
-  // 실시간 동기화: 5초마다 자동 새로고침 // UPDATED
+  // 실시간 동기화: 5초마다 자동 새로고침
+  // 단, 모달이 열려 있을 때는 새로고침하지 않음
   useEffect(() => {
     const syncInterval = setInterval(() => {
-      console.log('🔄 실시간 동기화: 5초 자동 새로고침');
-      loadData();
+      if (!isModalOpen && !isLaborClaimModalOpen) {
+        console.log('🔄 실시간 동기화: 5초 자동 새로고침');
+        loadData();
+      }
     }, 5000); // 5초마다 실행
 
     return () => {
       clearInterval(syncInterval);
     };
-  }, []); // UPDATED
+  }, [isModalOpen, isLaborClaimModalOpen]); // 모달 상태 변경 시 interval 재설정
 
   useEffect(() => {
     localStorage.setItem('geosang_projects_v1', JSON.stringify(projects));
@@ -1456,16 +1462,13 @@ const App: React.FC = () => {
     const isPartnerNetwork = isPurchase || isFranchiseHQ || isFranchiseBR || isInterior || isSales || isOthers;
     
     const showDepartmentFeature = !isOutsource;
-    const licenseInputRef = useRef<HTMLInputElement>(null);
-    const cardInputRef = useRef<HTMLInputElement>(null);
     const attachmentInputRef = useRef<HTMLInputElement>(null);
 
-    // 카테고리별 회사 정보 localStorage 키
+    // 카테고리별 회사 정보 localStorage 키 (프랜차이즈 본사 제외)
     const getCompanyInfoKey = (category: CategoryType) => {
       const keyMap: Record<string, string> = {
         [CategoryType.GEOSANG]: 'geosang_company_info_v1',
         [CategoryType.PURCHASE]: 'purchase_company_info_v1',
-        [CategoryType.FRANCHISE_HQ]: 'franchise_hq_company_info_v1',
         [CategoryType.FRANCHISE_BR]: 'franchise_br_company_info_v1',
         [CategoryType.INTERIOR]: 'interior_company_info_v1',
         [CategoryType.SALES]: 'sales_company_info_v1',
@@ -1474,8 +1477,9 @@ const App: React.FC = () => {
       return keyMap[category];
     };
 
-    // 회사 정보 불러오기
+    // 회사 정보 불러오기 (프랜차이즈 본사 제외)
     const getCompanyInfo = () => {
+      if (isFranchiseHQ) return null; // 프랜차이즈 본사는 localStorage 사용 안 함
       if (!isGeosang && !isPartnerNetwork) return null;
       const key = getCompanyInfoKey(initialData?.category || currentCategory);
       const saved = localStorage.getItem(key);
@@ -1483,8 +1487,71 @@ const App: React.FC = () => {
     };
 
     const [formData, setFormData] = useState<Partial<Contact>>(() => {
-      if (initialData) return { ...initialData };
+      if (initialData) {
+        return { ...initialData };
+      }
       
+      // 프랜차이즈 본사는 localStorage 사용 안 함 - 완전히 빈 폼으로 시작
+      if (isFranchiseHQ) {
+        return {
+          id: Date.now().toString(), 
+          category: currentCategory,
+          brandName: '', 
+          industry: '',
+          address: '',
+          phone: '',
+          phone2: '',
+          email: '',
+          homepage: '',
+          bankAccount: '',
+          subCategory: '',
+          staffList: [{ 
+            id: 's' + Date.now(), 
+            name: '', 
+            position: '', 
+            phone: '', 
+            email: '', 
+            department: '', 
+            rating: 5,
+            region: '',
+            bankAccount: '',
+            residentNumber: '',
+            features: ''
+          }],
+        };
+      }
+      
+      // 외주팀 관리는 localStorage 사용 안 함 - 완전히 빈 폼으로 시작
+      if (isOutsource) {
+        return {
+          id: Date.now().toString(), 
+          category: currentCategory,
+          brandName: '', 
+          industry: '',
+          address: '',
+          phone: '',
+          phone2: '',
+          email: '',
+          homepage: '',
+          bankAccount: '',
+          subCategory: '시공일당',
+          staffList: [{ 
+            id: 's' + Date.now(), 
+            name: '', 
+            position: '', 
+            phone: '', 
+            email: '', 
+            department: '', 
+            rating: 5,
+            region: '',
+            bankAccount: '',
+            residentNumber: '',
+            features: ''
+          }],
+        };
+      }
+      
+      // 다른 카테고리는 기존 로직 사용
       const companyInfo = getCompanyInfo();
       return {
         id: Date.now().toString(), category: currentCategory,
@@ -1496,7 +1563,7 @@ const App: React.FC = () => {
         email: companyInfo?.email || '',
         homepage: companyInfo?.homepage || '',
         bankAccount: companyInfo?.bankAccount || '',
-        subCategory: isOutsource ? (outsourceTypes[0] || '시공일당') : '',
+        subCategory: '',
         staffList: [{ 
           id: 's' + Date.now(), 
           name: '', 
@@ -1515,20 +1582,8 @@ const App: React.FC = () => {
 
     const [selectedDepartment, setSelectedDepartment] = useState<string>('');
     const [newItemInput, setNewItemInput] = useState('');
-    const [isOcrLoading, setIsOcrLoading] = useState(false);
-    const [isCardOcrLoading, setIsCardOcrLoading] = useState(false);
+    // 프랜차이즈 본사는 isEditingCompanyInfo 사용 안 함
     const [isEditingCompanyInfo, setIsEditingCompanyInfo] = useState(false);
-    
-    // 프랜차이즈 본사: 회사정보가 이미 있는지 확인 // UPDATED
-    const [hasCompanyInfo, setHasCompanyInfo] = useState(false); // UPDATED
-    
-    // 프랜차이즈 본사: 회사정보 로드 확인 // UPDATED
-    useEffect(() => {
-      if (isFranchiseHQ && !initialData) {
-        const companyInfo = getCompanyInfo();
-        setHasCompanyInfo(companyInfo !== null && companyInfo.brandName !== '');
-      }
-    }, [isFranchiseHQ]); // UPDATED
 
     const handleAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
@@ -1569,7 +1624,12 @@ const App: React.FC = () => {
 
     const handleStaffChange = (index: number, field: keyof Staff, value: any) => {
       setFormData(prev => {
-        const newList = [...(prev.staffList || [])];
+        const currentList = prev.staffList || [];
+        if (index >= currentList.length) {
+          console.error('❌ Invalid staff index:', index, 'staffList length:', currentList.length);
+          return prev;
+        }
+        const newList = [...currentList];
         newList[index] = { ...newList[index], [field]: value };
         return { ...prev, staffList: newList };
       });
@@ -1708,157 +1768,11 @@ const App: React.FC = () => {
       );
     };
 
-    const handleLicenseUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const result = event.target?.result as string;
-          const base64 = result.split(',')[1];
-          
-          setIsOcrLoading(true);
-          try {
-            const extracted = await extractBusinessLicenseData(base64, file.type);
-            setFormData(prev => ({
-              ...prev,
-              brandName: extracted.brandName || prev.brandName,
-              address: extracted.address || prev.address,
-              licenseFile: {
-                data: base64,
-                name: file.name,
-                mimeType: file.type
-              }
-            }));
-          } catch (err) {
-            console.error("OCR Failed", err);
-            setFormData(prev => ({
-              ...prev,
-              licenseFile: {
-                data: base64,
-                name: file.name,
-                mimeType: file.type
-              }
-            }));
-          } finally {
-            setIsOcrLoading(false);
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    const handleCardUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const result = event.target?.result as string;
-          const base64 = result.split(',')[1];
-          
-          setIsCardOcrLoading(true);
-          try {
-            const extracted = await extractBusinessCardData(base64, file.type);
-            
-            console.log('🎴 명함 OCR 추출 완료:', {
-              name: extracted.name,
-              company: extracted.companyName,
-              type: extracted.businessType,
-              phone: extracted.phone,
-              email: extracted.email,
-              address: extracted.address,
-              confidence: extracted.confidence
-            });
-            
-            setFormData(prev => {
-              const newList = [...(prev.staffList || [])];
-              let targetIdx = newList.length - 1;
-              if (newList[targetIdx]?.name && newList[targetIdx]?.phone) {
-                newList.push({
-                  id: 's' + Date.now(),
-                  name: '',
-                  position: '',
-                  phone: '',
-                  email: '',
-                  department: showDepartmentFeature ? (selectedDepartment || departments[0] || '') : '',
-                  rating: 5,
-                  region: '',
-                  bankAccount: '',
-                  residentNumber: '',
-                  features: ''
-                });
-                targetIdx = newList.length - 1;
-              }
-
-              // 스태프 정보 업데이트
-              newList[targetIdx] = {
-                ...newList[targetIdx],
-                name: extracted.name || newList[targetIdx].name,
-                position: extracted.position || newList[targetIdx].position,
-                phone: extracted.phone || newList[targetIdx].phone,
-                email: extracted.email || newList[targetIdx].email,
-                department: extracted.department || newList[targetIdx].department,
-                region: extracted.address || newList[targetIdx].region,
-                features: [
-                  extracted.businessType ? `업종: ${extracted.businessType}` : '',
-                  extracted.instagram ? `IG: ${extracted.instagram}` : '',
-                  extracted.kakaoId ? `카톡: ${extracted.kakaoId}` : '',
-                  extracted.confidence ? `신뢰도: ${extracted.confidence}` : ''
-                ].filter(Boolean).join(' / ') || newList[targetIdx].features
-              };
-
-              // 회사 정보 업데이트
-              return {
-                ...prev,
-                brandName: extracted.companyName || prev.brandName,
-                phone: extracted.companyPhone || prev.phone,
-                fax: extracted.fax || prev.fax,
-                homepage: extracted.homepage || prev.homepage,
-                address: extracted.address || prev.address,
-                staffList: newList
-              };
-            });
-            
-            // OCR 결과 알림
-            alert(`✅ 명함 인식 완료!\n\n` +
-              `📛 성명: ${extracted.name}\n` +
-              `🏢 회사: ${extracted.companyName || '미상'}\n` +
-              `💼 직위: ${extracted.position || '미상'}\n` +
-              `📞 휴대폰: ${extracted.phone || '미상'}\n` +
-              `☎️ 회사전화: ${extracted.companyPhone || '미상'}\n` +
-              `📧 이메일: ${extracted.email || '미상'}\n` +
-              `🏠 주소: ${extracted.address || '미상'}\n` +
-              `🎯 업종: ${extracted.businessType || '미상'}\n` +
-              `📊 신뢰도: ${extracted.confidence || 'medium'}`
-            );
-          } catch (err) {
-            console.error("Card OCR Failed", err);
-            alert("❌ 명함 분석에 실패했습니다.\n이미지가 명확한지 확인해주세요.");
-          } finally {
-            setIsCardOcrLoading(false);
-            if (cardInputRef.current) cardInputRef.current.value = '';
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
     return (
       <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-2 lg:p-6">
         <div className="bg-white rounded-3xl lg:rounded-[3rem] w-full max-w-3xl max-h-[95vh] overflow-y-auto shadow-2xl p-6 lg:p-10 scrollbar-hide">
           <div className="flex justify-between items-center mb-6 lg:mb-8">
-            <div className="flex items-center gap-4">
-              <h2 className="text-xl lg:text-3xl font-black tracking-tight">{isGeosang ? '거상 인원 등록' : '정보 등록'}</h2>
-              <input type="file" ref={licenseInputRef} className="hidden" accept="image/*,.pdf" onChange={handleLicenseUpload} />
-              <button 
-                type="button" 
-                disabled={isOcrLoading}
-                onClick={() => licenseInputRef.current?.click()}
-                className={`px-3 py-1.5 border rounded-lg text-[10px] font-black transition-colors flex items-center gap-1.5 ${formData.licenseFile ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'} ${isOcrLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isOcrLoading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />} 
-                {isOcrLoading ? '분석 중...' : (formData.licenseFile ? `변경: ${formData.licenseFile.name}` : '사업자등록증 업로드')}
-              </button>
-            </div>
+            <h2 className="text-xl lg:text-3xl font-black tracking-tight">{isGeosang ? '거상 인원 등록' : '정보 등록'}</h2>
             <button onClick={onClose} className="p-2 bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all"><X size={20}/></button>
           </div>
           <form onSubmit={e => { 
@@ -1897,26 +1811,6 @@ const App: React.FC = () => {
             {isOutsource && renderItemManagement(outsourceTypes, 'OUTSOURCE')}
             {!isOutsource && (
               <div className="space-y-4 lg:space-y-6">
-                {isFranchiseHQ && ( // UPDATED: 프랜차이즈 본사만
-                  <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-xl border border-blue-200">
-                    <div className="flex items-center gap-2">
-                      <Info size={16} className="text-blue-600" />
-                      <span className="text-xs font-bold text-blue-900">
-                        {hasCompanyInfo ? '회사 정보는 수정 아이콘으로만 변경 가능합니다' : '회사 정보를 최초 1회 입력하세요'}
-                      </span>
-                    </div>
-                    {hasCompanyInfo && ( // UPDATED: 회사정보가 있을 때만 수정 아이콘 표시
-                      <button
-                        type="button"
-                        onClick={() => setIsEditingCompanyInfo(prev => !prev)}
-                        className={`p-2 rounded-lg transition-all ${isEditingCompanyInfo ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-100'}`}
-                        title={isEditingCompanyInfo ? '수정 완료' : '회사 정보 수정'}
-                      >
-                        {isEditingCompanyInfo ? <Check size={16} /> : <Pencil size={16} />}
-                      </button>
-                    )}
-                  </div>
-                )}
                 {(isGeosang || isPartnerNetwork) && !isFranchiseHQ && ( // UPDATED: 다른 카테고리용
                   <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-xl border border-blue-200">
                     <div className="flex items-center gap-2">
@@ -1934,33 +1828,21 @@ const App: React.FC = () => {
                   </div>
                 )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData(prev => ({...prev, brandName: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData(prev => ({...prev, brandName: e.target.value}))} disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
                   <div className="lg:col-span-2">{renderItemManagement(industries, 'INDUSTRY')}</div>
-                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData(prev => ({...prev, address: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData(prev => ({...prev, phone2: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
-                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData(prev => ({...prev, email: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
-                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData(prev => ({...prev, homepage: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
-                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData(prev => ({...prev, bankAccount: e.target.value}))} placeholder="은행명 계좌번호 예금주" disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData(prev => ({...prev, address: e.target.value}))} disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))} disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData(prev => ({...prev, phone2: e.target.value}))} disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData(prev => ({...prev, email: e.target.value}))} disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData(prev => ({...prev, homepage: e.target.value}))} disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData(prev => ({...prev, bankAccount: e.target.value}))} placeholder="은행명 계좌번호 예금주" disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
                 </div>
               </div>
             )}
             <div className="border-t-2 border-slate-100 pt-6 lg:pt-8">
               <div className="flex justify-between items-center mb-4 lg:mb-6">
                 <h3 className="text-lg lg:text-xl font-black">인원 구성</h3>
-                <div className="flex items-center gap-2">
-                  <input type="file" ref={cardInputRef} className="hidden" accept="image/*" onChange={handleCardUpload} />
-                  <button 
-                    type="button" 
-                    disabled={isCardOcrLoading}
-                    onClick={() => cardInputRef.current?.click()}
-                    className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:bg-emerald-700 transition-all disabled:opacity-50"
-                  >
-                    {isCardOcrLoading ? <Loader2 size={14} className="animate-spin" /> : <Contact2 size={14}/>}
-                    {isCardOcrLoading ? '분석 중...' : '명함 업로드'}
-                  </button>
-                  <button type="button" onClick={addStaff} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"><Plus size={14}/> 추가</button>
-                </div>
+                <button type="button" onClick={addStaff} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"><Plus size={14}/> 추가</button>
               </div>
               {showDepartmentFeature && <div className="mb-6 lg:mb-10">{renderItemManagement(departments, 'DEPT')}</div>}
               <div className="space-y-4 lg:space-y-6">
@@ -1971,27 +1853,27 @@ const App: React.FC = () => {
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className="col-span-1">
                           <label className={labelClasses}>이름/상호</label>
-                          <input className={inputClasses} value={staff.name} onChange={e => handleStaffChange(idx, 'name', e.target.value)} required />
+                          <input className={inputClasses} value={staff.name || ''} onChange={e => handleStaffChange(idx, 'name', e.target.value)} required />
                         </div>
                         <div className="col-span-1">
                           <label className={labelClasses}>연락처</label>
-                          <input className={inputClasses} value={staff.phone} onChange={e => handleStaffChange(idx, 'phone', e.target.value)} required />
+                          <input className={inputClasses} value={staff.phone || ''} onChange={e => handleStaffChange(idx, 'phone', e.target.value)} required />
                         </div>
                         <div className="col-span-1">
                           <label className={labelClasses}>활동지역</label>
-                          <input className={inputClasses} value={staff.region} onChange={e => handleStaffChange(idx, 'region', e.target.value)} />
+                          <input className={inputClasses} value={staff.region || ''} onChange={e => handleStaffChange(idx, 'region', e.target.value)} />
                         </div>
                         <div className="col-span-1">
                           <label className={labelClasses}>주민번호/사업자번호</label>
-                          <input className={inputClasses} value={staff.residentNumber} onChange={e => handleStaffChange(idx, 'residentNumber', e.target.value)} />
+                          <input className={inputClasses} value={staff.residentNumber || ''} onChange={e => handleStaffChange(idx, 'residentNumber', e.target.value)} />
                         </div>
                         <div className="col-span-1">
                           <label className={labelClasses}>계좌번호</label>
-                          <input className={inputClasses} value={staff.bankAccount} onChange={e => handleStaffChange(idx, 'bankAccount', e.target.value)} />
+                          <input className={inputClasses} value={staff.bankAccount || ''} onChange={e => handleStaffChange(idx, 'bankAccount', e.target.value)} />
                         </div>
                         <div className="col-span-1">
                           <label className={labelClasses}>비고</label>
-                          <input className={inputClasses} value={staff.features} onChange={e => handleStaffChange(idx, 'features', e.target.value)} />
+                          <input className={inputClasses} value={staff.features || ''} onChange={e => handleStaffChange(idx, 'features', e.target.value)} />
                         </div>
                       </div>
                     ) : (
@@ -2224,8 +2106,8 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
-            {/* 인건비 청구 및 비밀번호 관리 페이지에서는 신규등록 버튼 숨김 */}
-            {!isLaborClaimView && !isPasswordManagerView && (
+            {/* 외주팀 관리는 신규등록 버튼 유지 */}
+            {!isLaborClaimView && !isPasswordManagerView && activeCategory === CategoryType.OUTSOURCE && (
               <button 
                 onClick={() => { setEditingContact(null); setIsModalOpen(true); }} 
                 className="bg-blue-600 text-white px-3 md:px-4 lg:px-5 py-2 md:py-2.5 lg:py-3 rounded-lg md:rounded-xl font-bold hover:bg-blue-700 flex items-center gap-1.5 md:gap-2 shadow-lg shadow-blue-100 flex-shrink-0"
