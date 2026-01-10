@@ -1518,6 +1518,9 @@ const App: React.FC = () => {
     const [isOcrLoading, setIsOcrLoading] = useState(false);
     const [isCardOcrLoading, setIsCardOcrLoading] = useState(false);
     const [isEditingCompanyInfo, setIsEditingCompanyInfo] = useState(false);
+    
+    // 프랜차이즈 본사: 회사정보가 이미 있으면 자동으로 disabled 모드 // UPDATED
+    const hasCompanyInfo = isFranchiseHQ && getCompanyInfo() !== null; // UPDATED
 
     const handleAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
@@ -1886,7 +1889,27 @@ const App: React.FC = () => {
             {isOutsource && renderItemManagement(outsourceTypes, 'OUTSOURCE')}
             {!isOutsource && (
               <div className="space-y-4 lg:space-y-6">
-                {(isGeosang || isPartnerNetwork) && (
+                {isFranchiseHQ && ( // UPDATED: 프랜차이즈 본사만
+                  <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-xl border border-blue-200">
+                    <div className="flex items-center gap-2">
+                      <Info size={16} className="text-blue-600" />
+                      <span className="text-xs font-bold text-blue-900">
+                        {hasCompanyInfo ? '회사 정보는 수정 아이콘으로만 변경 가능합니다' : '회사 정보를 최초 1회 입력하세요'}
+                      </span>
+                    </div>
+                    {hasCompanyInfo && ( // UPDATED: 회사정보가 있을 때만 수정 아이콘 표시
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingCompanyInfo(prev => !prev)}
+                        className={`p-2 rounded-lg transition-all ${isEditingCompanyInfo ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-100'}`}
+                        title={isEditingCompanyInfo ? '수정 완료' : '회사 정보 수정'}
+                      >
+                        {isEditingCompanyInfo ? <Check size={16} /> : <Pencil size={16} />}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {(isGeosang || isPartnerNetwork) && !isFranchiseHQ && ( // UPDATED: 다른 카테고리용
                   <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-xl border border-blue-200">
                     <div className="flex items-center gap-2">
                       <Info size={16} className="text-blue-600" />
@@ -1894,7 +1917,7 @@ const App: React.FC = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setIsEditingCompanyInfo(!isEditingCompanyInfo)}
+                      onClick={() => setIsEditingCompanyInfo(prev => !prev)}
                       className={`p-2 rounded-lg transition-all ${isEditingCompanyInfo ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-100'}`}
                       title={isEditingCompanyInfo ? '수정 완료' : '회사 정보 수정'}
                     >
@@ -1903,14 +1926,14 @@ const App: React.FC = () => {
                   </div>
                 )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData(prev => ({...prev, brandName: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>상호 / 브랜드명</label><input className={inputClasses} value={formData.brandName} onChange={e => setFormData(prev => ({...prev, brandName: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
                   <div className="lg:col-span-2">{renderItemManagement(industries, 'INDUSTRY')}</div>
-                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData(prev => ({...prev, address: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData(prev => ({...prev, phone2: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData(prev => ({...prev, email: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData(prev => ({...prev, homepage: e.target.value}))} disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
-                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData(prev => ({...prev, bankAccount: e.target.value}))} placeholder="은행명 계좌번호 예금주" disabled={(isGeosang || isPartnerNetwork) && !isEditingCompanyInfo} /></div>
+                  <div className="lg:col-span-2"><label className={labelClasses}>상세 주소</label><input className={inputClasses} value={formData.address} onChange={e => setFormData(prev => ({...prev, address: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 1</label><input className={inputClasses} value={formData.phone} onChange={e => setFormData(prev => ({...prev, phone: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="col-span-1"><label className={labelClasses}>대표번호 2</label><input className={inputClasses} value={formData.phone2} onChange={e => setFormData(prev => ({...prev, phone2: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData(prev => ({...prev, email: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData(prev => ({...prev, homepage: e.target.value}))} disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                  <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData(prev => ({...prev, bankAccount: e.target.value}))} placeholder="은행명 계좌번호 예금주" disabled={isFranchiseHQ ? (hasCompanyInfo && !isEditingCompanyInfo) : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
                 </div>
               </div>
             )}
