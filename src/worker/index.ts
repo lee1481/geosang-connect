@@ -121,6 +121,40 @@ app.use('*', async (c, next) => {
     }
   }
   
+  // 3. labor_claims 테이블 확인 및 생성 // UPDATED
+  try {
+    const { results: laborTableCheck } = await c.env.DB.prepare('SELECT name FROM sqlite_master WHERE type="table" AND name="labor_claims"').all();
+    
+    if (laborTableCheck.length === 0) {
+      console.log('📦 Creating labor_claims table...');
+      
+      await c.env.DB.prepare(`
+        CREATE TABLE labor_claims (
+          id TEXT PRIMARY KEY,
+          workerId TEXT,
+          workerName TEXT,
+          workerPhone TEXT,
+          date TEXT,
+          sites TEXT,
+          totalAmount REAL,
+          breakdown TEXT,
+          status TEXT DEFAULT 'pending',
+          memo TEXT,
+          approvedBy TEXT,
+          approvedAt TEXT,
+          paidAt TEXT,
+          createdAt TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+      
+      console.log('✅ labor_claims table created!');
+    }
+  } catch (laborError: any) {
+    console.error('❌ Error creating labor_claims table:', laborError);
+  } // UPDATED
+  
   await next();
 });
 
