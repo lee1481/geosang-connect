@@ -1519,8 +1519,16 @@ const App: React.FC = () => {
     const [isCardOcrLoading, setIsCardOcrLoading] = useState(false);
     const [isEditingCompanyInfo, setIsEditingCompanyInfo] = useState(false);
     
-    // 프랜차이즈 본사: 회사정보가 이미 있으면 자동으로 disabled 모드 // UPDATED
-    const hasCompanyInfo = isFranchiseHQ && getCompanyInfo() !== null; // UPDATED
+    // 프랜차이즈 본사: 회사정보가 이미 있는지 확인 // UPDATED
+    const [hasCompanyInfo, setHasCompanyInfo] = useState(false); // UPDATED
+    
+    // 프랜차이즈 본사: 회사정보 로드 확인 // UPDATED
+    useEffect(() => {
+      if (isFranchiseHQ && !initialData) {
+        const companyInfo = getCompanyInfo();
+        setHasCompanyInfo(companyInfo !== null && companyInfo.brandName !== '');
+      }
+    }, [isFranchiseHQ]); // UPDATED
 
     const handleAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
