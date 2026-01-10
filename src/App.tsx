@@ -320,6 +320,18 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // 실시간 동기화: 5초마다 자동 새로고침 // UPDATED
+  useEffect(() => {
+    const syncInterval = setInterval(() => {
+      console.log('🔄 실시간 동기화: 5초 자동 새로고침');
+      loadData();
+    }, 5000); // 5초마다 실행
+
+    return () => {
+      clearInterval(syncInterval);
+    };
+  }, []); // UPDATED
+
   useEffect(() => {
     localStorage.setItem('geosang_projects_v1', JSON.stringify(projects));
   }, [projects]);
