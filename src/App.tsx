@@ -1508,13 +1508,13 @@ const App: React.FC = () => {
 
   // 프로젝트 관리 뷰 (손익표) - 개선된 버전
 
-  // 거상 조직도 전용: 회사 등록 모달
-  const CompanyModal = ({ onClose, onSubmit, initialData, geosangCompanyTypes, setGeosangCompanyTypes, isAdmin }: any) => {
+  // 회사 등록 모달 (거상 조직도 + 모든 거래처 타입 공통)
+  const CompanyModal = ({ onClose, onSubmit, initialData, geosangCompanyTypes, setGeosangCompanyTypes, isAdmin, currentCategory }: any) => {
     const [formData, setFormData] = useState(() => {
       if (initialData) return { ...initialData, attachments: initialData.attachments || [] };
       return {
         id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        category: CategoryType.GEOSANG,
+        category: currentCategory || CategoryType.GEOSANG,
         brandName: '',
         industry: '',
         address: '',
@@ -3320,8 +3320,16 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
-            {/* 거상 조직도는 회사 등록 버튼 */}
-            {!isLaborClaimView && !isPasswordManagerView && activeCategory === CategoryType.GEOSANG && (
+            {/* 거상 조직도, 매입거래처, 프랜차이즈본사, 프랜차이즈지점, 인테리어, 요식업, 기타거래처는 회사 등록 버튼 */}
+            {!isLaborClaimView && !isPasswordManagerView && (
+              activeCategory === CategoryType.GEOSANG ||
+              activeCategory === CategoryType.PURCHASE ||
+              activeCategory === CategoryType.FRANCHISE_HQ ||
+              activeCategory === CategoryType.FRANCHISE_BR ||
+              activeCategory === CategoryType.INTERIOR ||
+              activeCategory === CategoryType.SALES ||
+              activeCategory === CategoryType.OTHERS
+            ) && (
               <button 
                 onClick={() => { setEditingContact(null); setIsCompanyModalOpen(true); }} 
                 className="bg-blue-600 text-white px-3 md:px-4 lg:px-5 py-2 md:py-2.5 lg:py-3 rounded-lg md:rounded-xl font-bold hover:bg-blue-700 flex items-center gap-1.5 md:gap-2 shadow-lg shadow-blue-100 flex-shrink-0"
@@ -3594,7 +3602,7 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-      {/* 거상 조직도 전용: 회사 등록 모달 */}
+      {/* 회사 등록 모달 (거상 조직도 + 모든 거래처 타입 공통) */}
       {isCompanyModalOpen && (
         <CompanyModal
           onClose={() => setIsCompanyModalOpen(false)}
@@ -3630,6 +3638,7 @@ const App: React.FC = () => {
           geosangCompanyTypes={geosangCompanyTypes}
           setGeosangCompanyTypes={setGeosangCompanyTypes}
           isAdmin={isAdmin}
+          currentCategory={activeCategory}
         />
       )}
       {isModalOpen && (
