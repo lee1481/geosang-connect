@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 
 type Bindings = {
   DB: D1Database;
+  R2: R2Bucket;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -574,6 +575,106 @@ app.delete('/api/labor-claims/:id', async (c) => {
     await c.env.DB.prepare('DELETE FROM labor_claims WHERE id = ?').bind(id).run();
     return c.json({ success: true });
   } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// ========== 파일 업로드/다운로드 API (R2) ==========
+
+// 사업자등록증 업로드 (거상 조직도용)
+app.post('/api/contacts/:contactId/staff/:staffId/upload-license', async (c) => {
+  try {
+    const contactId = c.req.param('contactId');
+    const staffId = c.req.param('staffId');
+    
+    // 파일 받기
+    const formData = await c.req.formData();
+    const file = formData.get('file') as File;
+    
+    if (!file) {
+      return c.json({ error: '파일이 없습니다.' }, 400);
+    }
+    
+    // 파일명 생성 (staffId_timestamp_originalname)
+    const timestamp = Date.now();
+    const ext = file.name.split('.').pop();
+    const filename = `business-licenses/${contactId}/${staffId}_${timestamp}.${ext}`;
+    
+    // R2에 업로드
+    const arrayBuffer = await file.arrayBuffer();
+    await c.env.R2.put(filename, arrayBuffer, {
+      httpMetadata: {
+        contentType: file.type,
+      },
+    });
+    
+    // 연락처 정보 조회
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM contacts WHERE id = ?'
+    ).bind(contactId).all();
+    
+    if (results.length === 0) {
+      return c.json({ error: '연락처를 찾을 수 없습니다.' }, 404);
+    }
+    
+    const contact: any = results[0];
+    const staffList = contact.staffList ? JSON.parse(contact.staffList) : [];
+    
+    // 해당 직원 찾아서 사업자등록증 URL 업데이트
+    const staffIndex = staffList.findIndex((s: any) => s.id === staffId);
+    if (staffIndex !== -1) {
+      staffList[staffIndex].businessLicenseUrl = filename;
+    }
+    
+    // DB 업데이트
+    await c.env.DB.prepare(
+      'UPDATE contacts SET staffList = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(JSON.stringify(staffList), contactId).run();
+    
+    return c.json({ 
+      success: true, 
+      filename,
+      url: `/api/files/${encodeURIComponent(filename)}`
+    });
+  } catch (error: any) {
+    console.error('업로드 오류:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// 파일 다운로드 (R2에서)
+app.get('/api/files/:filename', async (c) => {
+  try {
+    const filename = decodeURIComponent(c.req.param('filename'));
+    
+    // R2에서 파일 가져오기
+    const object = await c.env.R2.get(filename);
+    
+    if (!object) {
+      return c.json({ error: '파일을 찾을 수 없습니다.' }, 404);
+    }
+    
+    // 파일 반환
+    return new Response(object.body, {
+      headers: {
+        'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
+        'Content-Disposition': `inline; filename="${filename.split('/').pop()}"`,
+      },
+    });
+  } catch (error: any) {
+    console.error('다운로드 오류:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// 파일 삭제
+app.delete('/api/files/:filename', async (c) => {
+  try {
+    const filename = decodeURIComponent(c.req.param('filename'));
+    await c.env.R2.delete(filename);
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('삭제 오류:', error);
     return c.json({ error: error.message }, 500);
   }
 });

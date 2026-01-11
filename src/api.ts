@@ -119,5 +119,25 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify({ type, oldName, newName })
     });
+  },
+
+  // 사업자등록증 업로드
+  async uploadBusinessLicense(contactId: string, staffId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const res = await fetch(`${API_BASE}/contacts/${contactId}/staff/${staffId}/upload-license`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    return data;
+  },
+
+  // 파일 다운로드 URL 생성
+  getFileUrl(filename: string) {
+    return `${API_BASE}/files/${encodeURIComponent(filename)}`;
   }
 };

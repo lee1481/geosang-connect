@@ -11,6 +11,12 @@
       "database_id": "4d413848-5494-4f84-9997-dea8fdafd945"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "geosang-documents"
+    }
+  ],
   "assets": {
     "directory": "dist/public"
   }

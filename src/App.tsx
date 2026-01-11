@@ -36,12 +36,20 @@ const INITIAL_AUTH_USERS: AuthUser[] = [
 const contactsAPI = {
   async create(contact: Contact) {
     try {
+      // 먼저 연락처 생성
       const response = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(contact)
       });
-      return await response.json();
+      const result = await response.json();
+      
+      // 파일 업로드가 있는 경우 처리
+      if (result.success && contact.staffList) {
+        await this.uploadStaffBusinessLicenses(contact.id, contact.staffList);
+      }
+      
+      return result;
     } catch (error) {
       console.error('API create error:', error);
       return { success: false, error: String(error) };
@@ -49,6 +57,11 @@ const contactsAPI = {
   },
   async update(id: string, contact: Contact) {
     try {
+      // 먼저 파일 업로드 처리
+      if (contact.staffList) {
+        await this.uploadStaffBusinessLicenses(id, contact.staffList);
+      }
+      
       const response = await fetch(`/api/contacts/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -78,6 +91,33 @@ const contactsAPI = {
     } catch (error) {
       console.error('API getAll error:', error);
       return { success: false, error: String(error) };
+    }
+  },
+  async uploadStaffBusinessLicenses(contactId: string, staffList: Staff[]) {
+    // 파일이 있는 직원들만 필터링
+    const staffWithFiles = staffList.filter(s => s.businessLicenseFile);
+    
+    // 각 파일 업로드
+    for (const staff of staffWithFiles) {
+      if (staff.businessLicenseFile) {
+        try {
+          const formData = new FormData();
+          formData.append('file', staff.businessLicenseFile);
+          
+          const response = await fetch(`/api/contacts/${contactId}/staff/${staff.id}/upload-license`, {
+            method: 'POST',
+            body: formData
+          });
+          
+          const result = await response.json();
+          if (result.success) {
+            // 업로드 성공 시 URL 업데이트
+            staff.businessLicenseUrl = result.filename;
+          }
+        } catch (error) {
+          console.error('파일 업로드 오류:', staff.name, error);
+        }
+      }
     }
   }
 };
@@ -2519,6 +2559,88 @@ const App: React.FC = () => {
                               placeholder="010-1234-5678"
                               required 
                             />
+                          </div>
+                          
+                          {/* 사업자등록증 업로드 */}
+                          <div className="lg:col-span-2 mt-4">
+                            <label className={labelClasses}>사업자등록증</label>
+                            <div className="flex flex-col gap-3">
+                              <input
+                                type="file"
+                                accept="image/*,.pdf"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  
+                                  // 파일 크기 체크 (10MB)
+                                  if (file.size > 10 * 1024 * 1024) {
+                                    alert('파일 크기는 10MB 이하만 가능합니다.');
+                                    return;
+                                  }
+                                  
+                                  // 임시로 파일 정보 저장
+                                  handleStaffChange(idx, 'businessLicenseFile', file);
+                                  
+                                  // 미리보기를 위한 Data URL 생성
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    handleStaffChange(idx, 'businessLicensePreview', event.target?.result as string);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }}
+                                className={inputClasses}
+                              />
+                              
+                              {/* 미리보기 */}
+                              {staff.businessLicensePreview && (
+                                <div className="relative">
+                                  <img 
+                                    src={staff.businessLicensePreview} 
+                                    alt="사업자등록증 미리보기" 
+                                    className="w-full max-h-64 object-contain bg-gray-100 rounded-lg border-2 border-gray-200"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleStaffChange(idx, 'businessLicenseFile', undefined);
+                                      handleStaffChange(idx, 'businessLicensePreview', undefined);
+                                    }}
+                                    className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              )}
+                              
+                              {/* 기존 업로드된 파일 */}
+                              {staff.businessLicenseUrl && !staff.businessLicensePreview && (
+                                <div className="flex items-center gap-2 bg-green-50 p-3 rounded-lg border border-green-200">
+                                  <FileText size={20} className="text-green-600" />
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium text-green-900">업로드된 사업자등록증</p>
+                                    <a 
+                                      href={`/api/files/${encodeURIComponent(staff.businessLicenseUrl)}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-green-600 hover:underline"
+                                    >
+                                      미리보기/다운로드
+                                    </a>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirm('사업자등록증을 삭제하시겠습니까?')) {
+                                        handleStaffChange(idx, 'businessLicenseUrl', undefined);
+                                      }
+                                    }}
+                                    className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
