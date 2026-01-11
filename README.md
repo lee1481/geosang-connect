@@ -12,7 +12,11 @@
 
 ## 🌐 웹앱 접속
 
-**👉 [거상커넥트 바로가기](https://3000-i92vb33j94x420tordisx-cc2fbc16.sandbox.novita.ai)**
+**👉 [거상커넥트 프로덕션](https://9d38b834.webapp-6m6.pages.dev)**
+
+- **프로덕션 URL**: https://9d38b834.webapp-6m6.pages.dev
+- **GitHub 저장소**: https://github.com/lee1481/geosang-connect
+- **Cloudflare 계정**: Designsoul2007@gmail.com
 
 ## 🔐 초기 로그인 정보
 
@@ -237,6 +241,31 @@ pm2 delete webapp        # 프로세스 삭제
 
 ## 🔧 최근 수정 사항
 
+### 2026-01-11 (최신) - 프로덕션 배포 완료 🚀
+
+#### ✅ Cloudflare Pages 배포
+- **배포 URL**: https://9d38b834.webapp-6m6.pages.dev
+- **배포 일시**: 2026-01-11 11:31 UTC
+- **배포 내역**:
+  - ✅ 외주팀 관리 파일 첨부 기능 (주민등록증, 통장 사본)
+  - ✅ DB 마이그레이션 (idCardFile, bankBookFile 컬럼)
+  - ✅ 4개 파일 업로드 성공
+  - ✅ Worker 번들 컴파일 완료
+  - ✅ GitHub 동기화 완료
+
+- **기술 스택**:
+  - Frontend: React 18 + TypeScript + TailwindCSS
+  - Backend: Hono + Cloudflare Workers
+  - Database: Cloudflare D1 (SQLite)
+  - Storage: Base64 인코딩 (DB 저장)
+  - Platform: Cloudflare Pages
+
+- **배포 설정**:
+  - Account ID: cf68fabab0b28a441384bf980965f412
+  - Project Name: webapp
+  - Build Output: dist/public
+  - Git Commit: 영문 메시지로 UTF-8 인코딩 이슈 해결
+
 ### 2026-01-11 - 외주팀 관리 파일 첨부 기능 추가
 
 #### ✅ 시공일당/크레인 등록 시 서류 첨부 기능
@@ -374,5 +403,7 @@ Private - 거상컴퍼니 전용
 ---
 
 **개발자**: AI Assistant  
-**최종 업데이트**: 2026-01-11  
-**버전**: 1.1.0
+**최종 업데이트**: 2026-01-11 11:31 UTC  
+**버전**: 1.2.0  
+**배포 환경**: Cloudflare Pages (Production)  
+**배포 URL**: https://9d38b834.webapp-6m6.pages.dev
