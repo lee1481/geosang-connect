@@ -36,18 +36,13 @@ const INITIAL_AUTH_USERS: AuthUser[] = [
 const contactsAPI = {
   async create(contact: Contact) {
     try {
-      // 먼저 연락처 생성
+      // 연락처 생성 (파일 데이터 포함)
       const response = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(contact)
       });
       const result = await response.json();
-      
-      // 파일 업로드가 있는 경우 처리
-      if (result.success && contact.staffList) {
-        await this.uploadStaffBusinessLicenses(contact.id, contact.staffList);
-      }
       
       return result;
     } catch (error) {
@@ -57,11 +52,7 @@ const contactsAPI = {
   },
   async update(id: string, contact: Contact) {
     try {
-      // 먼저 파일 업로드 처리
-      if (contact.staffList) {
-        await this.uploadStaffBusinessLicenses(id, contact.staffList);
-      }
-      
+      // 연락처 수정 (파일 데이터 포함)
       const response = await fetch(`/api/contacts/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
