@@ -176,6 +176,87 @@ const getDocumentFolderName = (docType: string): string => {
   return mapping[docType] || '기타';
 };
 
+// AdminModal 컴포넌트 - App 외부에 정의하여 리렌더링 방지
+const AdminModal = React.memo(({ users, onClose, onAdd, onRevoke }: any) => {
+  // 비제어 컴포넌트: useRef로 입력값 관리
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const idInputRef = useRef<HTMLInputElement>(null);
+  const pwInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAddClick = () => {
+    const name = nameInputRef.current?.value || '';
+    const id = idInputRef.current?.value || '';
+    const pw = pwInputRef.current?.value || '';
+    
+    if (name && id && pw) {
+      onAdd(name, id, pw);
+      // 입력창 초기화
+      if (nameInputRef.current) nameInputRef.current.value = '';
+      if (idInputRef.current) idInputRef.current.value = '';
+      if (pwInputRef.current) pwInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[2rem] lg:rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="p-6 lg:p-10 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <div><h2 className="text-xl lg:text-2xl font-black tracking-tight flex items-center gap-3"><ShieldCheck className="text-blue-600" /> 권한 관리</h2></div>
+          <button onClick={onClose} className="p-2 bg-white rounded-xl border border-slate-200 shadow-sm"><X size={20}/></button>
+        </div>
+        <div className="p-6 lg:p-10 flex-1 overflow-y-auto space-y-8 scrollbar-hide">
+          <div className="bg-blue-50/50 rounded-2xl lg:rounded-3xl p-5 lg:p-8 border border-blue-100">
+            <h3 className="text-[10px] font-black text-blue-600 mb-4 uppercase tracking-widest">신규 계정 발급</h3>
+            <div className="grid grid-cols-1 gap-3">
+              <input 
+                ref={nameInputRef}
+                type="text"
+                autoComplete="off"
+                className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-blue-500" 
+                placeholder="이름"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input 
+                  ref={idInputRef}
+                  type="text"
+                  autoComplete="off"
+                  className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-blue-500" 
+                  placeholder="아이디"
+                />
+                <input 
+                  ref={pwInputRef}
+                  type="password"
+                  autoComplete="new-password"
+                  className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-blue-500" 
+                  placeholder="비밀번호"
+                />
+              </div>
+            </div>
+            <button onClick={handleAddClick} className="w-full mt-4 bg-slate-900 text-white py-3 rounded-xl font-black text-xs hover:bg-slate-800 transition-all">계정 등록</button>
+          </div>
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">등록된 계정</h3>
+            <div className="grid gap-2">
+              {users.map((user: any) => (
+                <div key={user.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-200 font-black text-[8px] text-slate-400 uppercase">User</div>
+                    <div>
+                      <div className="font-black text-slate-900 text-xs">{user.name}</div>
+                      <div className="text-[9px] font-bold text-slate-400 uppercase">ID: {user.username}</div>
+                    </div>
+                  </div>
+                  <button onClick={() => onRevoke(user.id)} className={`p-2 rounded-lg transition-all ${user.id === 'admin' ? 'hidden' : 'text-slate-300 hover:text-red-600 hover:bg-red-50'}`}><Trash2 size={16} /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const App: React.FC = () => {
   const [authorizedUsers, setAuthorizedUsers] = useState<AuthUser[]>(() => {
     const saved = localStorage.getItem('geosang_auth_users_v2');
@@ -1422,52 +1503,6 @@ const App: React.FC = () => {
   };
 
   // 프로젝트 관리 뷰 (손익표) - 개선된 버전
-
-  const AdminModal = ({ users, onClose, onAdd, onRevoke }: any) => {
-    const [newName, setNewName] = useState('');
-    const [newId, setNewId] = useState('');
-    const [newPw, setNewPw] = useState('');
-    return (
-      <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div className="bg-white rounded-[2rem] lg:rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-          <div className="p-6 lg:p-10 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <div><h2 className="text-xl lg:text-2xl font-black tracking-tight flex items-center gap-3"><ShieldCheck className="text-blue-600" /> 권한 관리</h2></div>
-            <button onClick={onClose} className="p-2 bg-white rounded-xl border border-slate-200 shadow-sm"><X size={20}/></button>
-          </div>
-          <div className="p-6 lg:p-10 flex-1 overflow-y-auto space-y-8 scrollbar-hide">
-            <div className="bg-blue-50/50 rounded-2xl lg:rounded-3xl p-5 lg:p-8 border border-blue-100">
-              <h3 className="text-[10px] font-black text-blue-600 mb-4 uppercase tracking-widest">신규 계정 발급</h3>
-              <div className="grid grid-cols-1 gap-3">
-                <input className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-blue-500" placeholder="이름" value={newName} onChange={e => setNewName(e.target.value)} />
-                <div className="grid grid-cols-2 gap-3">
-                  <input className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-blue-500" placeholder="아이디" value={newId} onChange={e => setNewId(e.target.value)} />
-                  <input className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-blue-500" placeholder="비밀번호" value={newPw} onChange={e => setNewPw(e.target.value)} />
-                </div>
-              </div>
-              <button onClick={() => { if(newName && newId && newPw) { onAdd(newName, newId, newPw); setNewName(''); setNewId(''); setNewPw(''); } }} className="w-full mt-4 bg-slate-900 text-white py-3 rounded-xl font-black text-xs hover:bg-slate-800 transition-all">계정 등록</button>
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">등록된 계정</h3>
-              <div className="grid gap-2">
-                {users.map((user: any) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-200 font-black text-[8px] text-slate-400 uppercase">User</div>
-                      <div>
-                        <div className="font-black text-slate-900 text-xs">{user.name}</div>
-                        <div className="text-[9px] font-bold text-slate-400 uppercase">ID: {user.username}</div>
-                      </div>
-                    </div>
-                    <button onClick={() => onRevoke(user.id)} className={`p-2 rounded-lg transition-all ${user.id === 'admin' ? 'hidden' : 'text-slate-300 hover:text-red-600 hover:bg-red-50'}`}><Trash2 size={16} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   // 거상 조직도 전용: 회사 등록 모달
   const CompanyModal = ({ onClose, onSubmit, initialData, geosangCompanyTypes, setGeosangCompanyTypes, isAdmin }: any) => {
