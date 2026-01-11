@@ -21,7 +21,8 @@ app.get('/', async (c) => {
     const parsedResults = results.map((row: any) => ({
       ...row,
       staffList: row.staffList ? JSON.parse(row.staffList) : [],
-      attachments: row.attachments ? JSON.parse(row.attachments) : []
+      attachments: row.attachments ? JSON.parse(row.attachments) : [],
+      licenseFile: row.licenseFile ? JSON.parse(row.licenseFile) : null
     }));
     
     return c.json({ success: true, data: parsedResults });
@@ -47,7 +48,8 @@ app.get('/by-company-name/:name', async (c) => {
     const parsed = {
       ...row,
       staffList: row.staffList ? JSON.parse(row.staffList) : [],
-      attachments: row.attachments ? JSON.parse(row.attachments) : []
+      attachments: row.attachments ? JSON.parse(row.attachments) : [],
+      licenseFile: row.licenseFile ? JSON.parse(row.licenseFile) : null
     };
     
     return c.json({ success: true, data: parsed });
@@ -73,7 +75,8 @@ app.get('/:id', async (c) => {
     const parsed = {
       ...row,
       staffList: row.staffList ? JSON.parse(row.staffList) : [],
-      attachments: row.attachments ? JSON.parse(row.attachments) : []
+      attachments: row.attachments ? JSON.parse(row.attachments) : [],
+      licenseFile: row.licenseFile ? JSON.parse(row.licenseFile) : null
     };
     
     return c.json({ success: true, data: parsed });
@@ -91,9 +94,10 @@ app.post('/', async (c) => {
     console.log('=== POST /api/contacts ===');
     console.log('받은 데이터:', JSON.stringify(body, null, 2));
     
-    // staffList와 attachments를 JSON 문자열로 변환
+    // staffList, attachments, licenseFile을 JSON 문자열로 변환
     const staffListJson = JSON.stringify(body.staffList || []);
     const attachmentsJson = JSON.stringify(body.attachments || []);
+    const licenseFileJson = body.licenseFile ? JSON.stringify(body.licenseFile) : null;
     
     await c.env.DB.prepare(`
       INSERT INTO contacts (
@@ -113,7 +117,7 @@ app.post('/', async (c) => {
       body.email || null,
       body.homepage || null,
       body.bankAccount || null,
-      body.licenseFile || null,
+      licenseFileJson,
       staffListJson,
       attachmentsJson,
       body.memo || null
@@ -148,9 +152,10 @@ app.put('/:id', async (c) => {
     console.log('수정할 ID:', id);
     console.log('받은 데이터:', JSON.stringify(body, null, 2));
     
-    // staffList와 attachments를 JSON 문자열로 변환
+    // staffList, attachments, licenseFile을 JSON 문자열로 변환
     const staffListJson = JSON.stringify(body.staffList || []);
     const attachmentsJson = JSON.stringify(body.attachments || []);
+    const licenseFileJson = body.licenseFile ? JSON.stringify(body.licenseFile) : null;
     
     await c.env.DB.prepare(`
       UPDATE contacts SET
@@ -181,7 +186,7 @@ app.put('/:id', async (c) => {
       body.email || null,
       body.homepage || null,
       body.bankAccount || null,
-      body.licenseFile || null,
+      licenseFileJson,
       staffListJson,
       attachmentsJson,
       body.memo || null,
