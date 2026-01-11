@@ -8,6 +8,14 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+// CORS 설정 - 모든 API 요청에 대해 CORS 허용
+app.use('*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 // 자동 마이그레이션: 앱 시작 시 테이블 스키마 확인 및 생성
 app.use('*', async (c, next) => {
   try {
@@ -317,6 +325,19 @@ app.delete('/api/auth/users/:id', async (c) => {
   }
 });
 
+// 📦 R2에서 파일 데이터 가져오기 헬퍼 함수
+async function getFileFromR2(r2: R2Bucket, r2Key: string): Promise<string | null> {
+  try {
+    const object = await r2.get(r2Key);
+    if (!object) return null;
+    const arrayBuffer = await object.arrayBuffer();
+    return Buffer.from(arrayBuffer).toString('base64');
+  } catch (error) {
+    console.error('R2 get error:', error);
+    return null;
+  }
+}
+
 // ========== 연락처 API ==========
 app.get('/api/contacts', async (c) => {
   try {
@@ -324,12 +345,35 @@ app.get('/api/contacts', async (c) => {
       'SELECT * FROM contacts ORDER BY created_at ASC'
     ).all();
     
-    // JSON 필드 파싱
-    const parsedResults = results.map((row: any) => ({
-      ...row,
-      staffList: row.staffList ? JSON.parse(row.staffList) : [],
-      attachments: row.attachments ? JSON.parse(row.attachments) : [],
-      licenseFile: row.licenseFile ? JSON.parse(row.licenseFile) : null
+    // JSON 필드 파싱 및 R2에서 파일 데이터 로드
+    const parsedResults = await Promise.all(results.map(async (row: any) => {
+      const licenseFile = row.licenseFile ? JSON.parse(row.licenseFile) : null;
+      const attachments = row.attachments ? JSON.parse(row.attachments) : [];
+      
+      // R2에서 licenseFile 데이터 가져오기
+      if (licenseFile?.r2Key) {
+        const data = await getFileFromR2(c.env.R2, licenseFile.r2Key);
+        if (data) {
+          licenseFile.data = data;
+        }
+      }
+      
+      // R2에서 attachments 데이터 가져오기
+      for (const attachment of attachments) {
+        if (attachment.r2Key) {
+          const data = await getFileFromR2(c.env.R2, attachment.r2Key);
+          if (data) {
+            attachment.data = data;
+          }
+        }
+      }
+      
+      return {
+        ...row,
+        staffList: row.staffList ? JSON.parse(row.staffList) : [],
+        attachments,
+        licenseFile
+      };
     }));
     
     return c.json({ success: true, data: parsedResults });
@@ -353,11 +397,28 @@ app.get('/api/contacts/by-company-name/:name', async (c) => {
     }
     
     const row: any = results[0];
+    const licenseFile = row.licenseFile ? JSON.parse(row.licenseFile) : null;
+    const attachments = row.attachments ? JSON.parse(row.attachments) : [];
+    
+    // R2에서 licenseFile 데이터 가져오기
+    if (licenseFile?.r2Key) {
+      const data = await getFileFromR2(c.env.R2, licenseFile.r2Key);
+      if (data) licenseFile.data = data;
+    }
+    
+    // R2에서 attachments 데이터 가져오기
+    for (const attachment of attachments) {
+      if (attachment.r2Key) {
+        const data = await getFileFromR2(c.env.R2, attachment.r2Key);
+        if (data) attachment.data = data;
+      }
+    }
+    
     const parsed = {
       ...row,
       staffList: row.staffList ? JSON.parse(row.staffList) : [],
-      attachments: row.attachments ? JSON.parse(row.attachments) : [],
-      licenseFile: row.licenseFile ? JSON.parse(row.licenseFile) : null
+      attachments,
+      licenseFile
     };
     
     return c.json({ success: true, data: parsed });
@@ -372,12 +433,45 @@ app.post('/api/contacts', async (c) => {
     const body = await c.req.json();
     
     console.log('=== POST /api/contacts ===');
-    console.log('받은 데이터:', JSON.stringify(body, null, 2));
+    console.log('받은 데이터 크기:', JSON.stringify(body).length, 'bytes');
     
-    // staffList, attachments, licenseFile을 JSON 문자열로 변환
+    // 📦 R2에 파일 업로드 (licenseFile)
+    let licenseFileJson = null;
+    if (body.licenseFile) {
+      const licenseKey = `contacts/${body.id}/license-${Date.now()}.${body.licenseFile.name.split('.').pop()}`;
+      await c.env.R2.put(licenseKey, Buffer.from(body.licenseFile.data, 'base64'), {
+        httpMetadata: { contentType: body.licenseFile.mimeType }
+      });
+      licenseFileJson = JSON.stringify({
+        name: body.licenseFile.name,
+        mimeType: body.licenseFile.mimeType,
+        r2Key: licenseKey  // R2 경로만 저장
+      });
+      console.log('✅ License file uploaded to R2:', licenseKey);
+    }
+    
+    // 📦 R2에 첨부파일 업로드 (attachments)
+    const attachmentsWithR2: any[] = [];
+    if (body.attachments && body.attachments.length > 0) {
+      for (let i = 0; i < body.attachments.length; i++) {
+        const file = body.attachments[i];
+        const fileKey = `contacts/${body.id}/attachment-${i}-${Date.now()}.${file.name.split('.').pop()}`;
+        await c.env.R2.put(fileKey, Buffer.from(file.data, 'base64'), {
+          httpMetadata: { contentType: file.mimeType }
+        });
+        attachmentsWithR2.push({
+          name: file.name,
+          mimeType: file.mimeType,
+          size: file.size,
+          r2Key: fileKey  // R2 경로만 저장
+        });
+      }
+      console.log(`✅ ${attachmentsWithR2.length} attachments uploaded to R2`);
+    }
+    const attachmentsJson = JSON.stringify(attachmentsWithR2);
+    
+    // staffList을 JSON 문자열로 변환
     const staffListJson = JSON.stringify(body.staffList || []);
-    const attachmentsJson = JSON.stringify(body.attachments || []);
-    const licenseFileJson = body.licenseFile ? JSON.stringify(body.licenseFile) : null;
     
     await c.env.DB.prepare(`
       INSERT INTO contacts (
@@ -422,6 +516,130 @@ app.post('/api/contacts', async (c) => {
   }
 });
 
+// PUT /api/contacts/:id - 회사 정보 수정
+app.put('/api/contacts/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    
+    console.log('=== PUT /api/contacts/:id ===');
+    console.log('수정할 ID:', id);
+    console.log('받은 데이터 크기:', JSON.stringify(body).length, 'bytes');
+    
+    // 📦 R2에 파일 업로드 (licenseFile)
+    let licenseFileJson = null;
+    if (body.licenseFile) {
+      // 새 파일이 업로드된 경우 (data 필드가 있음)
+      if (body.licenseFile.data && !body.licenseFile.r2Key) {
+        const licenseKey = `contacts/${id}/license-${Date.now()}.${body.licenseFile.name.split('.').pop()}`;
+        await c.env.R2.put(licenseKey, Buffer.from(body.licenseFile.data, 'base64'), {
+          httpMetadata: { contentType: body.licenseFile.mimeType }
+        });
+        licenseFileJson = JSON.stringify({
+          name: body.licenseFile.name,
+          mimeType: body.licenseFile.mimeType,
+          r2Key: licenseKey
+        });
+        console.log('✅ License file uploaded to R2:', licenseKey);
+      } else {
+        // 기존 파일 유지
+        licenseFileJson = JSON.stringify({
+          name: body.licenseFile.name,
+          mimeType: body.licenseFile.mimeType,
+          r2Key: body.licenseFile.r2Key
+        });
+      }
+    }
+    
+    // 📦 R2에 첨부파일 업로드 (attachments)
+    const attachmentsWithR2: any[] = [];
+    if (body.attachments && body.attachments.length > 0) {
+      for (let i = 0; i < body.attachments.length; i++) {
+        const file = body.attachments[i];
+        // 새 파일인 경우
+        if (file.data && !file.r2Key) {
+          const fileKey = `contacts/${id}/attachment-${i}-${Date.now()}.${file.name.split('.').pop()}`;
+          await c.env.R2.put(fileKey, Buffer.from(file.data, 'base64'), {
+            httpMetadata: { contentType: file.mimeType }
+          });
+          attachmentsWithR2.push({
+            name: file.name,
+            mimeType: file.mimeType,
+            size: file.size,
+            r2Key: fileKey
+          });
+        } else {
+          // 기존 파일 유지
+          attachmentsWithR2.push({
+            name: file.name,
+            mimeType: file.mimeType,
+            size: file.size,
+            r2Key: file.r2Key
+          });
+        }
+      }
+      console.log(`✅ ${attachmentsWithR2.length} attachments processed`);
+    }
+    const attachmentsJson = JSON.stringify(attachmentsWithR2);
+    
+    // staffList을 JSON 문자열로 변환
+    const staffListJson = JSON.stringify(body.staffList || []);
+    
+    await c.env.DB.prepare(`
+      UPDATE contacts SET
+        category = ?,
+        brandName = ?,
+        subCategory = ?,
+        industry = ?,
+        address = ?,
+        phone = ?,
+        phone2 = ?,
+        email = ?,
+        homepage = ?,
+        bankAccount = ?,
+        licenseFile = ?,
+        staffList = ?,
+        attachments = ?,
+        memo = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.category,
+      body.brandName || null,
+      body.subCategory || null,
+      body.industry || null,
+      body.address || null,
+      body.phone || null,
+      body.phone2 || null,
+      body.email || null,
+      body.homepage || null,
+      body.bankAccount || null,
+      licenseFileJson,
+      staffListJson,
+      attachmentsJson,
+      body.memo || null,
+      id
+    ).run();
+    
+    // 수정된 데이터 반환
+    const updatedData = {
+      ...body,
+      id,
+      staffList: body.staffList || [],
+      attachments: body.attachments || [],
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log('=== 수정된 데이터 ===');
+    console.log('ID:', id);
+    
+    return c.json({ success: true, data: updatedData });
+  } catch (error: any) {
+    console.error('PUT /api/contacts/:id error:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // 회사명으로 기존 회사 검색 API
 app.get('/api/contacts/search', async (c) => {
   try {
@@ -443,11 +661,28 @@ app.get('/api/contacts/search', async (c) => {
 
     if (result) {
       // staffList, attachments, licenseFile을 파싱
+      const licenseFile = result.licenseFile ? JSON.parse(result.licenseFile) : null;
+      const attachments = result.attachments ? JSON.parse(result.attachments) : [];
+      
+      // R2에서 licenseFile 데이터 가져오기
+      if (licenseFile?.r2Key) {
+        const data = await getFileFromR2(c.env.R2, licenseFile.r2Key);
+        if (data) licenseFile.data = data;
+      }
+      
+      // R2에서 attachments 데이터 가져오기
+      for (const attachment of attachments) {
+        if (attachment.r2Key) {
+          const data = await getFileFromR2(c.env.R2, attachment.r2Key);
+          if (data) attachment.data = data;
+        }
+      }
+      
       const parsedResult = {
         ...result,
         staffList: result.staffList ? JSON.parse(result.staffList) : [],
-        attachments: result.attachments ? JSON.parse(result.attachments) : [],
-        licenseFile: result.licenseFile ? JSON.parse(result.licenseFile) : null
+        attachments,
+        licenseFile
       };
       
       console.log('검색 결과:', parsedResult.brandName);
