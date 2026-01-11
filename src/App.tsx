@@ -3026,7 +3026,70 @@ const App: React.FC = () => {
             )}
 
             {/* 외주팀 관리 UI */}
-            {isOutsource && renderItemManagement(outsourceTypes, 'OUTSOURCE')}
+            {isOutsource && (
+              <div className="space-y-4 lg:space-y-6">
+                {/* 구분 선택 (시공일당, 크레인) */}
+                <div>
+                  <label className={labelClasses}>구분 *</label>
+                  {renderItemManagement(outsourceTypes, 'OUTSOURCE')}
+                </div>
+                
+                {/* 외주팀 기본 정보 입력 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                  <div className="lg:col-span-2">
+                    <label className={labelClasses}>이름 *</label>
+                    <input 
+                      className={inputClasses} 
+                      value={formData.staffList?.[0]?.name || ''} 
+                      onChange={e => handleStaffChange(0, 'name', e.target.value)} 
+                      placeholder="이름을 입력하세요"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="lg:col-span-2">
+                    <label className={labelClasses}>연락처 *</label>
+                    <input 
+                      className={inputClasses} 
+                      value={formData.staffList?.[0]?.phone || ''} 
+                      onChange={e => handleStaffChange(0, 'phone', e.target.value)} 
+                      placeholder="010-1234-5678"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="lg:col-span-2">
+                    <label className={labelClasses}>주소</label>
+                    <input 
+                      className={inputClasses} 
+                      value={formData.staffList?.[0]?.region || ''} 
+                      onChange={e => handleStaffChange(0, 'region', e.target.value)} 
+                      placeholder="주소를 입력하세요"
+                    />
+                  </div>
+                  
+                  <div className="lg:col-span-2">
+                    <label className={labelClasses}>계좌번호</label>
+                    <input 
+                      className={inputClasses} 
+                      value={formData.staffList?.[0]?.bankAccount || ''} 
+                      onChange={e => handleStaffChange(0, 'bankAccount', e.target.value)} 
+                      placeholder="은행명 계좌번호 예금주"
+                    />
+                  </div>
+                  
+                  <div className="lg:col-span-2">
+                    <label className={labelClasses}>비고</label>
+                    <textarea 
+                      className={inputClasses + " min-h-[100px] resize-y"} 
+                      value={formData.staffList?.[0]?.features || ''} 
+                      onChange={e => handleStaffChange(0, 'features', e.target.value)} 
+                      placeholder="특이사항, 메모 등을 입력하세요"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* 다른 카테고리 UI */}
             {!isGeosang && !isOutsource && (
