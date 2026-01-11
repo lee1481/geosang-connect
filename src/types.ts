@@ -27,9 +27,6 @@ export interface Staff {
   bankAccount?: string;
   residentNumber?: string;
   features?: string;
-  businessLicenseUrl?: string;        // R2에 저장된 사업자등록증 URL
-  businessLicenseFile?: File;         // 업로드할 파일 (임시)
-  businessLicensePreview?: string;    // 미리보기용 Data URL (임시)
 }
 
 export interface Contact {

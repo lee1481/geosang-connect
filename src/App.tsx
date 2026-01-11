@@ -92,33 +92,6 @@ const contactsAPI = {
       console.error('API getAll error:', error);
       return { success: false, error: String(error) };
     }
-  },
-  async uploadStaffBusinessLicenses(contactId: string, staffList: Staff[]) {
-    // 파일이 있는 직원들만 필터링
-    const staffWithFiles = staffList.filter(s => s.businessLicenseFile);
-    
-    // 각 파일 업로드
-    for (const staff of staffWithFiles) {
-      if (staff.businessLicenseFile) {
-        try {
-          const formData = new FormData();
-          formData.append('file', staff.businessLicenseFile);
-          
-          const response = await fetch(`/api/contacts/${contactId}/staff/${staff.id}/upload-license`, {
-            method: 'POST',
-            body: formData
-          });
-          
-          const result = await response.json();
-          if (result.success) {
-            // 업로드 성공 시 URL 업데이트
-            staff.businessLicenseUrl = result.filename;
-          }
-        } catch (error) {
-          console.error('파일 업로드 오류:', staff.name, error);
-        }
-      }
-    }
   }
 };
 
