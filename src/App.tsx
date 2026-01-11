@@ -2511,30 +2511,62 @@ const App: React.FC = () => {
                   {/* 회사 기본 정보 입력 */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                     <div className="lg:col-span-2">
-                      <label className={labelClasses}>회사명</label>
+                      <div className="flex items-center gap-2">
+                        <label className={labelClasses}>회사명</label>
+                        {initialData && (
+                          <span className="text-[8px] text-slate-400">(회사명 변경 시 자동완성 작동)</span>
+                        )}
+                      </div>
                       <input 
                         className={inputClasses} 
                         value={formData.brandName} 
-                        onChange={e => {
-                          const newBrandName = e.target.value;
-                          setFormData(prev => ({...prev, brandName: newBrandName}));
+                        onBlur={async (e) => {
+                          const companyName = e.target.value.trim();
+                          if (!companyName) return;
                           
-                          // 기존 연락처에서 동일한 회사명 찾기
-                          const existingCompany = contacts.find(c => c.brandName === newBrandName);
-                          if (existingCompany) {
-                            // 회사 정보 자동 입력
-                            setFormData(prev => ({
-                              ...prev,
-                              brandName: newBrandName,
-                              address: existingCompany.address || prev.address,
-                              email: existingCompany.email || prev.email,
-                              homepage: existingCompany.homepage || prev.homepage,
-                              phone: existingCompany.phone || prev.phone,
-                              phone2: existingCompany.phone2 || prev.phone2,
-                              bankAccount: existingCompany.bankAccount || prev.bankAccount
-                            }));
+                          // API로 동일한 회사명 검색
+                          try {
+                            const response = await fetch(`/api/contacts/search?name=${encodeURIComponent(companyName)}`);
+                            const result = await response.json();
+                            
+                            if (result.success && result.data) {
+                              const existingCompany = result.data;
+                              
+                              // 수정 모드이고 회사명이 변경되었을 때
+                              const isEditMode = !!initialData;
+                              const hasEmptyFields = !formData.address || !formData.phone || !formData.email;
+                              
+                              if (isEditMode && hasEmptyFields) {
+                                // 빈 필드만 자동 입력
+                                setFormData(prev => ({
+                                  ...prev,
+                                  address: prev.address || existingCompany.address || '',
+                                  email: prev.email || existingCompany.email || '',
+                                  homepage: prev.homepage || existingCompany.homepage || '',
+                                  phone: prev.phone || existingCompany.phone || '',
+                                  phone2: prev.phone2 || existingCompany.phone2 || '',
+                                  bankAccount: prev.bankAccount || existingCompany.bankAccount || ''
+                                }));
+                                console.log('✅ 회사 정보 자동완성 (수정 모드):', existingCompany.brandName);
+                              } else if (!isEditMode) {
+                                // 신규 등록 모드: 빈 필드만 자동 입력
+                                setFormData(prev => ({
+                                  ...prev,
+                                  address: prev.address || existingCompany.address || '',
+                                  email: prev.email || existingCompany.email || '',
+                                  homepage: prev.homepage || existingCompany.homepage || '',
+                                  phone: prev.phone || existingCompany.phone || '',
+                                  phone2: prev.phone2 || existingCompany.phone2 || '',
+                                  bankAccount: prev.bankAccount || existingCompany.bankAccount || ''
+                                }));
+                                console.log('✅ 회사 정보 자동완성 (신규 등록):', existingCompany.brandName);
+                              }
+                            }
+                          } catch (error) {
+                            console.error('회사명 조회 실패:', error);
                           }
-                        }} 
+                        }}
+                        onChange={e => setFormData(prev => ({...prev, brandName: e.target.value}))} 
                         placeholder="회사명을 입력하세요"
                         required
                       />

@@ -31,6 +31,32 @@ app.get('/', async (c) => {
   }
 });
 
+// GET /api/contacts/by-company-name/:name - 회사명으로 거래처 조회 (자동완성용)
+app.get('/by-company-name/:name', async (c) => {
+  try {
+    const companyName = decodeURIComponent(c.req.param('name'));
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM contacts WHERE brandName = ? ORDER BY created_at DESC LIMIT 1'
+    ).bind(companyName).all();
+    
+    if (results.length === 0) {
+      return c.json({ success: true, data: null });
+    }
+    
+    const row: any = results[0];
+    const parsed = {
+      ...row,
+      staffList: row.staffList ? JSON.parse(row.staffList) : [],
+      attachments: row.attachments ? JSON.parse(row.attachments) : []
+    };
+    
+    return c.json({ success: true, data: parsed });
+  } catch (error: any) {
+    console.error('GET /api/contacts/by-company-name/:name error:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // GET /api/contacts/:id - 특정 거래처 조회
 app.get('/:id', async (c) => {
   try {

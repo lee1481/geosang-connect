@@ -338,6 +338,32 @@ app.get('/api/contacts', async (c) => {
   }
 });
 
+// GET /api/contacts/by-company-name/:name - 회사명으로 거래처 조회 (자동완성용)
+app.get('/api/contacts/by-company-name/:name', async (c) => {
+  try {
+    const companyName = decodeURIComponent(c.req.param('name'));
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM contacts WHERE brandName = ? ORDER BY created_at DESC LIMIT 1'
+    ).bind(companyName).all();
+    
+    if (results.length === 0) {
+      return c.json({ success: true, data: null });
+    }
+    
+    const row: any = results[0];
+    const parsed = {
+      ...row,
+      staffList: row.staffList ? JSON.parse(row.staffList) : [],
+      attachments: row.attachments ? JSON.parse(row.attachments) : []
+    };
+    
+    return c.json({ success: true, data: parsed });
+  } catch (error: any) {
+    console.error('GET /api/contacts/by-company-name/:name error:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 app.post('/api/contacts', async (c) => {
   try {
     const body = await c.req.json();
@@ -388,6 +414,116 @@ app.post('/api/contacts', async (c) => {
     return c.json({ success: true, data: createdData }, 201);
   } catch (error: any) {
     console.error('POST /api/contacts error:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 회사명으로 기존 회사 검색 API
+app.get('/api/contacts/search', async (c) => {
+  try {
+    const name = c.req.query('name');
+    
+    if (!name || name.trim() === '') {
+      return c.json({ success: false, error: '회사명을 입력해주세요' }, 400);
+    }
+
+    console.log('=== GET /api/contacts/search ===');
+    console.log('검색할 회사명:', name);
+
+    // brandName이 정확히 일치하는 회사 검색
+    const result = await c.env.DB.prepare(`
+      SELECT * FROM contacts 
+      WHERE brandName = ? 
+      LIMIT 1
+    `).bind(name.trim()).first();
+
+    if (result) {
+      // staffList와 attachments를 파싱
+      const parsedResult = {
+        ...result,
+        staffList: result.staffList ? JSON.parse(result.staffList) : [],
+        attachments: result.attachments ? JSON.parse(result.attachments) : []
+      };
+      
+      console.log('검색 결과:', parsedResult.brandName);
+      return c.json({ success: true, data: parsedResult });
+    } else {
+      console.log('검색 결과: 없음');
+      return c.json({ success: true, data: null });
+    }
+  } catch (error) {
+    console.error('GET /api/contacts/search error:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 거상컴퍼니 레코드 일괄 업데이트 API (마이그레이션용)
+app.post('/api/contacts/migrate-geosang', async (c) => {
+  try {
+    console.log('=== POST /api/contacts/migrate-geosang ===');
+    
+    // 1. 대표 데이터 조회 (완전한 정보를 가진 레코드)
+    const masterRecord = await c.env.DB.prepare(`
+      SELECT * FROM contacts 
+      WHERE brandName = '거상컴퍼니' 
+        AND address IS NOT NULL 
+        AND address != ''
+      LIMIT 1
+    `).first();
+
+    if (!masterRecord) {
+      return c.json({ success: false, error: '대표 데이터를 찾을 수 없습니다' }, 404);
+    }
+
+    console.log('대표 데이터 ID:', masterRecord.id);
+    console.log('대표 주소:', masterRecord.address);
+
+    // 2. 빈 필드를 가진 거상컴퍼니 레코드들 조회
+    const emptyRecords = await c.env.DB.prepare(`
+      SELECT id FROM contacts 
+      WHERE brandName = '거상컴퍼니' 
+        AND id != ?
+        AND (address IS NULL OR address = '')
+    `).bind(masterRecord.id).all();
+
+    console.log('업데이트 대상 레코드 수:', emptyRecords.results.length);
+
+    // 3. 각 레코드 업데이트
+    let updatedCount = 0;
+    for (const record of emptyRecords.results) {
+      await c.env.DB.prepare(`
+        UPDATE contacts SET
+          address = ?,
+          phone = ?,
+          phone2 = ?,
+          email = ?,
+          homepage = ?,
+          bankAccount = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).bind(
+        masterRecord.address,
+        masterRecord.phone,
+        masterRecord.phone2,
+        masterRecord.email,
+        masterRecord.homepage,
+        masterRecord.bankAccount,
+        record.id
+      ).run();
+      
+      updatedCount++;
+      console.log(`업데이트 완료: ${record.id}`);
+    }
+
+    return c.json({ 
+      success: true, 
+      message: `${updatedCount}개 레코드 업데이트 완료`,
+      updatedCount,
+      masterRecordId: masterRecord.id
+    });
+
+  } catch (error) {
+    console.error('POST /api/contacts/migrate-geosang error:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
