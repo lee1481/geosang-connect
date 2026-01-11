@@ -2078,15 +2078,18 @@ const App: React.FC = () => {
     const inputClasses = "w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 lg:py-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none bg-white text-slate-900 font-bold text-xs lg:text-sm transition-all";
     const labelClasses = "block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1";
 
-    const renderItemManagement = (items: string[], type: 'DEPT' | 'INDUSTRY' | 'OUTSOURCE' | 'COMPANY_TYPE' | 'GEOSANG_DEPT') => {
+    const renderItemManagement = (items: string[], type: 'DEPT' | 'INDUSTRY' | 'OUTSOURCE' | 'COMPANY_TYPE' | 'GEOSANG_DEPT', staffIdx?: number) => {
       const isSelected = (item: string) => {
         if (type === 'DEPT') return selectedDepartment === item;
         if (type === 'INDUSTRY') return formData.industry === item;
         if (type === 'COMPANY_TYPE') return formData.industry === item; // 거상 조직도 회사 구분
         if (type === 'GEOSANG_DEPT') {
-          // 현재 직원 카드의 부서 선택
-          const lastStaff = formData.staffList?.[formData.staffList.length - 1];
-          return lastStaff?.department === item;
+          // 현재 직원 카드의 부서 선택 (인덱스 기반)
+          if (staffIdx !== undefined) {
+            const currentStaff = formData.staffList?.[staffIdx];
+            return currentStaff?.department === item;
+          }
+          return false;
         }
         return formData.subCategory === item;
       };
@@ -2168,8 +2171,10 @@ const App: React.FC = () => {
                     } else if (type === 'INDUSTRY' || type === 'COMPANY_TYPE') {
                       setFormData({...formData, industry: item}); 
                     } else if (type === 'GEOSANG_DEPT') {
-                      // 현재 마지막 직원의 부서 설정
-                      handleStaffChange(formData.staffList!.length - 1, 'department', item);
+                      // 현재 직원의 부서 설정 (인덱스 기반)
+                      if (staffIdx !== undefined) {
+                        handleStaffChange(staffIdx, 'department', item);
+                      }
                     } else {
                       setFormData({...formData, subCategory: item});
                     }
@@ -2322,7 +2327,26 @@ const App: React.FC = () => {
                       <input 
                         className={inputClasses} 
                         value={formData.brandName} 
-                        onChange={e => setFormData(prev => ({...prev, brandName: e.target.value}))} 
+                        onChange={e => {
+                          const newBrandName = e.target.value;
+                          setFormData(prev => ({...prev, brandName: newBrandName}));
+                          
+                          // 기존 연락처에서 동일한 회사명 찾기
+                          const existingCompany = contacts.find(c => c.brandName === newBrandName);
+                          if (existingCompany) {
+                            // 회사 정보 자동 입력
+                            setFormData(prev => ({
+                              ...prev,
+                              brandName: newBrandName,
+                              address: existingCompany.address || prev.address,
+                              email: existingCompany.email || prev.email,
+                              homepage: existingCompany.homepage || prev.homepage,
+                              phone: existingCompany.phone || prev.phone,
+                              phone2: existingCompany.phone2 || prev.phone2,
+                              bankAccount: existingCompany.bankAccount || prev.bankAccount
+                            }));
+                          }
+                        }} 
                         placeholder="회사명을 입력하세요"
                         required
                       />
@@ -2418,7 +2442,7 @@ const App: React.FC = () => {
                         {/* 부서 선택 */}
                         <div className="mb-6">
                           <label className={labelClasses}>부서 구분 *</label>
-                          {renderItemManagement(geosangDepartments, 'GEOSANG_DEPT')}
+                          {renderItemManagement(geosangDepartments, 'GEOSANG_DEPT', idx)}
                         </div>
 
                         {/* 직원 기본 정보 */}
@@ -2503,55 +2527,6 @@ const App: React.FC = () => {
                 </div>
               </div>
             )}
-            <div className="border-t-2 border-slate-100 pt-6 lg:pt-8">
-              <div className="flex justify-between items-center mb-4 lg:mb-6">
-                <h3 className="text-lg lg:text-xl font-black">인원 구성</h3>
-                <button type="button" onClick={addStaff} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"><Plus size={14}/> 추가</button>
-              </div>
-              {showDepartmentFeature && <div className="mb-6 lg:mb-10">{renderItemManagement(departments, 'DEPT')}</div>}
-              <div className="space-y-4 lg:space-y-6">
-                {formData.staffList?.map((staff, idx) => (
-                  <div key={idx} className="bg-slate-50 p-5 lg:p-8 rounded-2xl lg:rounded-[2.5rem] border-2 border-slate-200 relative">
-                    {formData.staffList!.length > 1 && (<button type="button" onClick={() => removeStaff(idx)} className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500"><Trash2 size={18}/></button>)}
-                    {isOutsource ? (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <div className="col-span-1">
-                          <label className={labelClasses}>이름/상호</label>
-                          <input className={inputClasses} value={staff.name || ''} onChange={e => handleStaffChange(idx, 'name', e.target.value)} required />
-                        </div>
-                        <div className="col-span-1">
-                          <label className={labelClasses}>연락처</label>
-                          <input className={inputClasses} value={staff.phone || ''} onChange={e => handleStaffChange(idx, 'phone', e.target.value)} required />
-                        </div>
-                        <div className="col-span-1">
-                          <label className={labelClasses}>활동지역</label>
-                          <input className={inputClasses} value={staff.region || ''} onChange={e => handleStaffChange(idx, 'region', e.target.value)} />
-                        </div>
-                        <div className="col-span-1">
-                          <label className={labelClasses}>주민번호/사업자번호</label>
-                          <input className={inputClasses} value={staff.residentNumber || ''} onChange={e => handleStaffChange(idx, 'residentNumber', e.target.value)} />
-                        </div>
-                        <div className="col-span-1">
-                          <label className={labelClasses}>계좌번호</label>
-                          <input className={inputClasses} value={staff.bankAccount || ''} onChange={e => handleStaffChange(idx, 'bankAccount', e.target.value)} />
-                        </div>
-                        <div className="col-span-1">
-                          <label className={labelClasses}>비고</label>
-                          <input className={inputClasses} value={staff.features || ''} onChange={e => handleStaffChange(idx, 'features', e.target.value)} />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <div className="col-span-1"><label className={labelClasses}>성명</label><input className={inputClasses} value={staff.name} onChange={e => handleStaffChange(idx, 'name', e.target.value)} required /></div>
-                        <div className="col-span-1"><label className={labelClasses}>직함</label><input className={inputClasses} value={staff.position} onChange={e => handleStaffChange(idx, 'position', e.target.value)} /></div>
-                        <div className="col-span-1"><label className={labelClasses}>연락처</label><input className={inputClasses} value={staff.phone} onChange={e => handleStaffChange(idx, 'phone', e.target.value)} required /></div>
-                        <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={staff.email} onChange={e => handleStaffChange(idx, 'email', e.target.value)} /></div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
             
             <button type="submit" className="w-full bg-blue-600 text-white py-4 lg:py-5 rounded-2xl lg:rounded-[1.5rem] font-black text-sm lg:text-lg shadow-xl hover:bg-blue-700 transition-all sticky bottom-0 z-10">저장하기</button>
           </form>
