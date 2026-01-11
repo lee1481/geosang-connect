@@ -3087,6 +3087,198 @@ const App: React.FC = () => {
                       placeholder="특이사항, 메모 등을 입력하세요"
                     />
                   </div>
+                  
+                  {/* 주민등록증 사본 업로드 */}
+                  <div className="lg:col-span-2">
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-5 lg:p-6 rounded-2xl lg:rounded-3xl border-2 border-blue-200">
+                      <label className="block text-sm lg:text-base font-black text-blue-700 mb-4 flex items-center gap-2">
+                        <FileText size={20} className="text-blue-600" />
+                        주민등록증 사본
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        id="idCardInput"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          if (file.size > 10 * 1024 * 1024) {
+                            alert('❌ 파일 크기는 10MB 이하여야 합니다.');
+                            return;
+                          }
+                          
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const base64 = (event.target?.result as string).split(',')[1];
+                            handleStaffChange(0, 'idCardFile', {
+                              data: base64,
+                              name: file.name,
+                              mimeType: file.type,
+                              size: file.size
+                            });
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      
+                      <div className="flex gap-3 mb-4">
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('idCardInput')?.click()}
+                          className="flex-1 bg-blue-600 text-white px-5 py-3 lg:py-3.5 rounded-xl lg:rounded-2xl font-bold text-sm lg:text-base hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg"
+                        >
+                          <Upload size={20} />
+                          {formData.staffList?.[0]?.idCardFile ? '파일 재선택' : '파일 선택'}
+                        </button>
+                        
+                        {formData.staffList?.[0]?.idCardFile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleStaffChange(0, 'idCardFile', null);
+                              const input = document.getElementById('idCardInput') as HTMLInputElement;
+                              if (input) input.value = '';
+                            }}
+                            className="bg-red-100 text-red-600 px-5 py-3 lg:py-3.5 rounded-xl lg:rounded-2xl font-bold text-sm lg:text-base hover:bg-red-200 transition-all flex items-center gap-2"
+                          >
+                            <Trash2 size={20} />
+                            삭제
+                          </button>
+                        )}
+                      </div>
+                      
+                      {formData.staffList?.[0]?.idCardFile && (
+                        <div className="bg-white rounded-xl lg:rounded-2xl p-4 lg:p-5 border-2 border-blue-200">
+                          <div className="flex items-center gap-3">
+                            <FileText size={22} className="text-blue-600" />
+                            <div className="flex-1">
+                              <p className="text-sm lg:text-base font-bold text-slate-900">주민등록증 사본</p>
+                              <p className="text-xs lg:text-sm text-slate-500">{formData.staffList[0].idCardFile.name}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const file = formData.staffList?.[0]?.idCardFile;
+                                if (file) {
+                                  const link = document.createElement('a');
+                                  link.href = `data:${file.mimeType};base64,${file.data}`;
+                                  link.download = file.name;
+                                  link.click();
+                                }
+                              }}
+                              className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-all"
+                              title="다운로드"
+                            >
+                              <Download size={20} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <p className="text-xs lg:text-sm text-slate-500 mt-3 flex items-center gap-1">
+                        <Info size={14} />
+                        이미지 또는 PDF 파일 (최대 10MB)
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* 통장 사본 업로드 */}
+                  <div className="lg:col-span-2">
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 lg:p-6 rounded-2xl lg:rounded-3xl border-2 border-green-200">
+                      <label className="block text-sm lg:text-base font-black text-green-700 mb-4 flex items-center gap-2">
+                        <FileText size={20} className="text-green-600" />
+                        통장 사본
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        id="bankBookInput"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          if (file.size > 10 * 1024 * 1024) {
+                            alert('❌ 파일 크기는 10MB 이하여야 합니다.');
+                            return;
+                          }
+                          
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const base64 = (event.target?.result as string).split(',')[1];
+                            handleStaffChange(0, 'bankBookFile', {
+                              data: base64,
+                              name: file.name,
+                              mimeType: file.type,
+                              size: file.size
+                            });
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      
+                      <div className="flex gap-3 mb-4">
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('bankBookInput')?.click()}
+                          className="flex-1 bg-green-600 text-white px-5 py-3 lg:py-3.5 rounded-xl lg:rounded-2xl font-bold text-sm lg:text-base hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-lg"
+                        >
+                          <Upload size={20} />
+                          {formData.staffList?.[0]?.bankBookFile ? '파일 재선택' : '파일 선택'}
+                        </button>
+                        
+                        {formData.staffList?.[0]?.bankBookFile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleStaffChange(0, 'bankBookFile', null);
+                              const input = document.getElementById('bankBookInput') as HTMLInputElement;
+                              if (input) input.value = '';
+                            }}
+                            className="bg-red-100 text-red-600 px-5 py-3 lg:py-3.5 rounded-xl lg:rounded-2xl font-bold text-sm lg:text-base hover:bg-red-200 transition-all flex items-center gap-2"
+                          >
+                            <Trash2 size={20} />
+                            삭제
+                          </button>
+                        )}
+                      </div>
+                      
+                      {formData.staffList?.[0]?.bankBookFile && (
+                        <div className="bg-white rounded-xl lg:rounded-2xl p-4 lg:p-5 border-2 border-green-200">
+                          <div className="flex items-center gap-3">
+                            <FileText size={22} className="text-green-600" />
+                            <div className="flex-1">
+                              <p className="text-sm lg:text-base font-bold text-slate-900">통장 사본</p>
+                              <p className="text-xs lg:text-sm text-slate-500">{formData.staffList[0].bankBookFile.name}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const file = formData.staffList?.[0]?.bankBookFile;
+                                if (file) {
+                                  const link = document.createElement('a');
+                                  link.href = `data:${file.mimeType};base64,${file.data}`;
+                                  link.download = file.name;
+                                  link.click();
+                                }
+                              }}
+                              className="text-green-600 hover:text-green-700 p-2 hover:bg-green-50 rounded-lg transition-all"
+                              title="다운로드"
+                            >
+                              <Download size={20} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <p className="text-xs lg:text-sm text-slate-500 mt-3 flex items-center gap-1">
+                        <Info size={14} />
+                        이미지 또는 PDF 파일 (최대 10MB)
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

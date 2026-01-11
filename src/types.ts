@@ -27,6 +27,18 @@ export interface Staff {
   bankAccount?: string;
   residentNumber?: string;
   features?: string;
+  idCardFile?: {
+    data: string;
+    name: string;
+    mimeType: string;
+    size: number;
+  };
+  bankBookFile?: {
+    data: string;
+    name: string;
+    mimeType: string;
+    size: number;
+  };
 }
 
 export interface Contact {
