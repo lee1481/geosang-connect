@@ -36,8 +36,9 @@ app.get('/', async (c) => {
 app.get('/by-company-name/:name', async (c) => {
   try {
     const companyName = decodeURIComponent(c.req.param('name'));
+    // 주소가 있는 데이터를 우선적으로 가져오기 (완전한 정보)
     const { results } = await c.env.DB.prepare(
-      'SELECT * FROM contacts WHERE brandName = ? ORDER BY created_at DESC LIMIT 1'
+      'SELECT * FROM contacts WHERE brandName = ? ORDER BY (address IS NOT NULL AND address != "") DESC, created_at ASC LIMIT 1'
     ).bind(companyName).all();
     
     if (results.length === 0) {

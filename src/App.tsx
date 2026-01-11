@@ -1717,8 +1717,37 @@ const App: React.FC = () => {
                 <input 
                   className={inputClasses} 
                   value={formData.brandName} 
-                  onChange={e => setFormData({...formData, brandName: e.target.value})} 
-                  placeholder="회사명을 입력하세요"
+                  onChange={async (e) => {
+                    const companyName = e.target.value;
+                    setFormData({...formData, brandName: companyName});
+                    
+                    // 회사명이 입력되면 기존 데이터 자동완성
+                    if (companyName.trim()) {
+                      try {
+                        const response = await fetch(`/api/contacts/by-company-name/${encodeURIComponent(companyName.trim())}`);
+                        const result = await response.json();
+                        
+                        if (result.success && result.data) {
+                          // 기존 회사 정보가 있으면 자동으로 채우기
+                          setFormData({
+                            ...formData,
+                            brandName: companyName,
+                            industry: result.data.industry || formData.industry,
+                            address: result.data.address || '',
+                            phone: result.data.phone || '',
+                            phone2: result.data.phone2 || '',
+                            email: result.data.email || '',
+                            homepage: result.data.homepage || '',
+                            bankAccount: result.data.bankAccount || '',
+                            licenseFile: result.data.licenseFile || null
+                          });
+                        }
+                      } catch (error) {
+                        console.error('자동완성 오류:', error);
+                      }
+                    }
+                  }} 
+                  placeholder="회사명을 입력하세요 (기존 회사는 자동완성)"
                   required
                 />
               </div>
