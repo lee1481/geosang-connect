@@ -1,9 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "webapp",
+  "name": "gs-connect",
   "compatibility_date": "2025-12-26",
   "compatibility_flags": ["nodejs_compat"],
   "main": "dist/worker/index.js",
+  "pages_build_output_dir": "dist/public",
   "d1_databases": [
     {
       "binding": "DB",

@@ -12,11 +12,13 @@
 
 ## 🌐 웹앱 접속
 
-**👉 [거상커넥트 프로덕션](https://9d38b834.webapp-6m6.pages.dev)**
+**👉 [거상커넥트 프로덕션](https://gs-connect.pages.dev)**
 
-- **프로덕션 URL**: https://9d38b834.webapp-6m6.pages.dev
+- **프로덕션 URL**: https://gs-connect.pages.dev
+- **최신 배포 URL**: https://e6965c50.gs-connect.pages.dev
 - **GitHub 저장소**: https://github.com/lee1481/geosang-connect
 - **Cloudflare 계정**: Designsoul2007@gmail.com
+- **프로젝트명**: gs-connect
 
 ## 🔐 초기 로그인 정보
 
@@ -241,30 +243,37 @@ pm2 delete webapp        # 프로세스 삭제
 
 ## 🔧 최근 수정 사항
 
-### 2026-01-11 (최신) - 프로덕션 배포 완료 🚀
+### 2026-01-11 (최신) - 독립 프로젝트로 재배포 완료 🚀
 
-#### ✅ Cloudflare Pages 배포
-- **배포 URL**: https://9d38b834.webapp-6m6.pages.dev
-- **배포 일시**: 2026-01-11 11:31 UTC
-- **배포 내역**:
-  - ✅ 외주팀 관리 파일 첨부 기능 (주민등록증, 통장 사본)
-  - ✅ DB 마이그레이션 (idCardFile, bankBookFile 컬럼)
-  - ✅ 4개 파일 업로드 성공
-  - ✅ Worker 번들 컴파일 완료
-  - ✅ GitHub 동기화 완료
+#### ✅ 새 Cloudflare Pages 프로젝트 생성 및 배포
+- **새 프로젝트명**: gs-connect
+- **메인 URL**: https://gs-connect.pages.dev
+- **최신 배포 URL**: https://e6965c50.gs-connect.pages.dev
+- **배포 일시**: 2026-01-11 (재배포)
+- **변경 사유**: 
+  - 기존 webapp-6m6.pages.dev가 거상시공일정표(gs-mytools)와 중복
+  - 독립적인 프로젝트 분리 필요
+  - gs-connect로 새 프로젝트 생성 및 재배포
 
-- **기술 스택**:
-  - Frontend: React 18 + TypeScript + TailwindCSS
-  - Backend: Hono + Cloudflare Workers
-  - Database: Cloudflare D1 (SQLite)
-  - Storage: Base64 인코딩 (DB 저장)
-  - Platform: Cloudflare Pages
+#### ✅ 배포 내역
+- ✅ 외주팀 관리 파일 첨부 기능 (주민등록증, 통장 사본)
+- ✅ DB 마이그레이션 (idCardFile, bankBookFile 컬럼)
+- ✅ 4개 파일 업로드 성공
+- ✅ Worker 번들 컴파일 완료
+- ✅ GitHub 동기화 완료
 
-- **배포 설정**:
-  - Account ID: cf68fabab0b28a441384bf980965f412
-  - Project Name: webapp
-  - Build Output: dist/public
-  - Git Commit: 영문 메시지로 UTF-8 인코딩 이슈 해결
+#### ✅ 기술 스택
+- Frontend: React 18 + TypeScript + TailwindCSS
+- Backend: Hono + Cloudflare Workers
+- Database: Cloudflare D1 (SQLite)
+- Storage: Base64 인코딩 (DB 저장)
+- Platform: Cloudflare Pages
+
+#### ✅ 배포 설정
+- Account ID: cf68fabab0b28a441384bf980965f412
+- Project Name: gs-connect (신규)
+- Build Output: dist/public
+- Production Branch: main
 
 ### 2026-01-11 - 외주팀 관리 파일 첨부 기능 추가
 
@@ -403,7 +412,8 @@ Private - 거상컴퍼니 전용
 ---
 
 **개발자**: AI Assistant  
-**최종 업데이트**: 2026-01-11 11:31 UTC  
-**버전**: 1.2.0  
+**최종 업데이트**: 2026-01-11  
+**버전**: 1.3.0  
 **배포 환경**: Cloudflare Pages (Production)  
-**배포 URL**: https://9d38b834.webapp-6m6.pages.dev
+**프로젝트명**: gs-connect  
+**배포 URL**: https://gs-connect.pages.dev
