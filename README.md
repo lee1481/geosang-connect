@@ -12,7 +12,7 @@
 
 ## 🌐 웹앱 접속
 
-**👉 [거상커넥트 바로가기](https://3000-i92vb33j94x420tordisx-dfc00ec5.sandbox.novita.ai)**
+**👉 [거상커넥트 바로가기](https://3000-i92vb33j94x420tordisx-cc2fbc16.sandbox.novita.ai)**
 
 ## 🔐 초기 로그인 정보
 
@@ -64,11 +64,12 @@
 - **📸 명함 업로드**: 명함 사진을 업로드하면 자동으로 정보 추출
 - **📄 사업자등록증 업로드**: 사업자등록증 OCR로 회사 정보 자동 입력
 - **🤖 Gemini AI OCR**: 최신 AI 기술로 정확한 텍스트 추출
-- **📎 거상 조직도 사업자등록증 관리**: 
-  - 직원별 사업자등록증 업로드 (R2 Storage)
+- **📎 회사 사업자등록증 관리**: 
+  - 회사별 사업자등록증 업로드
   - 실시간 미리보기 기능
   - 다운로드 및 재업로드 지원
   - 이미지/PDF 파일 지원 (최대 10MB)
+  - Base64 인코딩하여 DB 저장
 
 ### ✅ 파일 업로드 & OCR 자동 분석
 - **📊 엑셀 파일 지원**: XLSX, XLS, CSV 자동 파싱
@@ -236,26 +237,38 @@ pm2 delete webapp        # 프로세스 삭제
 
 ## 🔧 최근 수정 사항
 
-### 2026-01-11 - 사업자등록증 관리 기능 추가 (R2 Storage)
+### 2026-01-11 - 회사 사업자등록증 관리 기능 최적화
 
-#### ✅ 거상 조직도에 사업자등록증 업로드/다운로드 기능 구현
-- **기능**:
-  - 직원별 사업자등록증 파일 업로드 (이미지/PDF, 최대 10MB)
-  - 실시간 미리보기 표시
-  - 업로드된 파일 다운로드
-  - 파일 삭제 및 재업로드
-- **기술 스택**:
-  - **Cloudflare R2 Storage**: 파일 저장소 (`geosang-documents` 버킷)
-  - **백엔드 API**: `/api/contacts/:contactId/staff/:staffId/upload-license` (업로드)
-  - **파일 조회**: `/api/files/:filename` (다운로드/미리보기)
-- **저장 경로**: `business-licenses/{contactId}/{staffId}_{timestamp}.{ext}`
-- **데이터 구조**: `staffList` JSON에 `businessLicenseUrl` 필드 추가
+#### ✅ 직원별 사업자등록증 기능 제거 및 회사 사업자등록증으로 통합
+- **변경 사유**: 
+  - 직원별 사업자등록증은 실제 업무에서 불필요
+  - 회사(법인) 단위 사업자등록증만 필요
+  - UI/UX 단순화 및 성능 최적화
+  
+- **제거된 기능**:
+  - ❌ 직원 카드 내부의 사업자등록증 입력란
+  - ❌ R2 Storage 직원별 파일 업로드 로직
+  - ❌ Staff 인터페이스의 businessLicense 관련 필드
+
+- **유지/추가된 기능**:
+  - ✅ **회사 등록 모달**: 회사 사업자등록증 업로드 (CompanyModal)
+  - ✅ **거상 인원 등록 모달**: 회사 정보 섹션에 사업자등록증 추가 (ContactFormModal)
+  - ✅ 실시간 미리보기 (이미지)
+  - ✅ 다운로드 기능
+  - ✅ 파일 삭제 및 재선택
+  - ✅ Base64 인코딩하여 DB 저장 (R2 Storage 불필요)
+
 - **수정된 파일**:
-  - `wrangler.jsonc`: R2 버킷 바인딩 추가
-  - `src/worker/index.ts`: R2 파일 업로드/다운로드 API 구현
-  - `src/types.ts`: Staff 인터페이스에 사업자등록증 필드 추가
-  - `src/App.tsx`: 거상 조직도 모달에 파일 업로드 UI 추가
-  - `src/api.ts`: 파일 업로드 API 함수 추가
+  - `src/types.ts`: Staff 인터페이스에서 사업자등록증 필드 제거 (3개 필드)
+  - `src/App.tsx`: 직원 카드 UI에서 사업자등록증 입력란 제거, contactsAPI.uploadStaffBusinessLicenses() 함수 제거
+  - `src/App.tsx`: ContactFormModal 회사 정보 섹션에 사업자등록증 업로드 추가
+
+- **최종 구조**:
+  ```
+  ✅ CompanyModal (회사 등록) → 회사 사업자등록증
+  ✅ ContactFormModal (인원 추가) → 회사 정보 섹션 → 회사 사업자등록증
+  ❌ 직원 카드 → 사업자등록증 제거됨
+  ```
 
 ### 2026-01-11 - 권한 관리 모달 한글 입력 문제 해결
 
@@ -331,4 +344,4 @@ Private - 거상컴퍼니 전용
 
 **개발자**: AI Assistant  
 **최종 업데이트**: 2026-01-11  
-**버전**: 1.0.1
+**버전**: 1.1.0
