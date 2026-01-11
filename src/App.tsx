@@ -1559,11 +1559,15 @@ const App: React.FC = () => {
         email: '',
         homepage: '',
         bankAccount: '',
+        licenseFile: null,
         staffList: []
       };
     });
 
     const [newItemInput, setNewItemInput] = useState('');
+    const [licensePreview, setLicensePreview] = useState<string | null>(null);
+    const [isUploadingLicense, setIsUploadingLicense] = useState(false);
+    const licenseInputRef = useRef<HTMLInputElement>(null);
     
     // 슬라이드 네비게이션 바 상태 관리 (회사 등록 모달용)
     const [companyScrollThumbTop, setCompanyScrollThumbTop] = useState(0);
@@ -1811,6 +1815,137 @@ const App: React.FC = () => {
                   onChange={e => setFormData({...formData, bankAccount: e.target.value})} 
                   placeholder="은행명 계좌번호 예금주"
                 />
+              </div>
+            </div>
+
+            {/* 회사 사업자등록증 업로드 */}
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 p-6 lg:p-8 rounded-3xl border-2 border-emerald-200">
+              <label className={labelClasses}>📄 회사 사업자등록증</label>
+              <div className="space-y-4">
+                <input
+                  ref={licenseInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    
+                    // 파일 크기 체크 (10MB)
+                    if (file.size > 10 * 1024 * 1024) {
+                      alert('❌ 파일 크기는 10MB 이하여야 합니다.');
+                      return;
+                    }
+                    
+                    setIsUploadingLicense(true);
+                    
+                    try {
+                      // 미리보기 생성
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setLicensePreview(event.target?.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                      
+                      // Base64로 변환하여 formData에 저장
+                      const base64Reader = new FileReader();
+                      base64Reader.onload = (event) => {
+                        const base64 = (event.target?.result as string).split(',')[1];
+                        setFormData({
+                          ...formData,
+                          licenseFile: {
+                            data: base64,
+                            name: file.name,
+                            mimeType: file.type
+                          }
+                        });
+                      };
+                      base64Reader.readAsDataURL(file);
+                    } catch (error) {
+                      console.error('파일 업로드 오류:', error);
+                      alert('❌ 파일 업로드 중 오류가 발생했습니다.');
+                    } finally {
+                      setIsUploadingLicense(false);
+                    }
+                  }}
+                />
+                
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => licenseInputRef.current?.click()}
+                    disabled={isUploadingLicense}
+                    className="flex-1 bg-emerald-600 text-white px-4 py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isUploadingLicense ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        업로드 중...
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={18} />
+                        {formData.licenseFile || licensePreview ? '파일 재선택' : '파일 선택'}
+                      </>
+                    )}
+                  </button>
+                  
+                  {(formData.licenseFile || licensePreview) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, licenseFile: null });
+                        setLicensePreview(null);
+                        if (licenseInputRef.current) {
+                          licenseInputRef.current.value = '';
+                        }
+                      }}
+                      className="bg-red-100 text-red-600 px-4 py-3 rounded-xl font-bold text-sm hover:bg-red-200 transition-all flex items-center gap-2"
+                    >
+                      <Trash2 size={18} />
+                      삭제
+                    </button>
+                  )}
+                </div>
+                
+                {/* 미리보기 */}
+                {(licensePreview || (initialData?.licenseFile && !licensePreview)) && (
+                  <div className="bg-white rounded-xl p-4 border-2 border-emerald-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <FileText size={20} className="text-emerald-600" />
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-slate-900">사업자등록증</p>
+                        <p className="text-xs text-slate-500">{formData.licenseFile?.name || '기존 파일'}</p>
+                      </div>
+                      {formData.licenseFile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = `data:${formData.licenseFile.mimeType};base64,${formData.licenseFile.data}`;
+                            link.download = formData.licenseFile.name;
+                            link.click();
+                          }}
+                          className="text-blue-600 hover:text-blue-700 p-2"
+                          title="다운로드"
+                        >
+                          <Download size={18} />
+                        </button>
+                      )}
+                    </div>
+                    {licensePreview && (
+                      <img 
+                        src={licensePreview} 
+                        alt="사업자등록증 미리보기" 
+                        className="w-full rounded-lg border border-slate-200"
+                      />
+                    )}
+                  </div>
+                )}
+                
+                <p className="text-xs text-slate-500 mt-2">
+                  * 이미지 또는 PDF 파일 (최대 10MB)
+                </p>
               </div>
             </div>
 
