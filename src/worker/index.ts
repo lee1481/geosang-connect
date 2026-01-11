@@ -321,7 +321,7 @@ app.delete('/api/auth/users/:id', async (c) => {
 app.get('/api/contacts', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
-      'SELECT * FROM contacts ORDER BY created_at DESC'
+      'SELECT * FROM contacts ORDER BY created_at ASC'
     ).all();
     
     // JSON 필드 파싱
