@@ -359,6 +359,13 @@ const App: React.FC = () => {
   const [isLaborClaimModalOpen, setIsLaborClaimModalOpen] = useState(false);
   const [editingClaim, setEditingClaim] = useState<LaborClaim | null>(null);
   const [isPasswordManagerView, setIsPasswordManagerView] = useState(false);
+  const [isGeosangAccountView, setIsGeosangAccountView] = useState(false);
+  const [geosangAccounts, setGeosangAccounts] = useState<any[]>(() => {
+    const saved = localStorage.getItem('geosang_accounts_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [isGeosangAccountModalOpen, setIsGeosangAccountModalOpen] = useState(false);
+  const [editingGeosangAccount, setEditingGeosangAccount] = useState<any | null>(null);
 
   // 프로젝트 관리 (손익표)
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -447,6 +454,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('geosang_projects_v1', JSON.stringify(projects));
   }, [projects]);
+
+  useEffect(() => {
+    localStorage.setItem('geosang_accounts_v1', JSON.stringify(geosangAccounts));
+  }, [geosangAccounts]);
 
   // authorizedUsers는 이제 API에서 로드되므로 localStorage 저장 불필요
   // useEffect(() => {
@@ -1011,6 +1022,94 @@ const App: React.FC = () => {
           ))}
         </div>
       </div>
+    );
+  };
+
+  // 거상 계정 등록 뷰
+  const GeosangAccountView = () => {
+    return (
+      <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth">
+        <div className="mb-4 md:mb-6 lg:mb-10">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">거상 계정 등록</h2>
+              <p className="text-[10px] md:text-xs lg:text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">계정 현황: {geosangAccounts.length}건</p>
+            </div>
+            <button 
+              onClick={() => { setEditingGeosangAccount(null); setIsGeosangAccountModalOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all text-sm"
+            >
+              <Plus size={18} />
+              <span>계정 추가</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
+            {geosangAccounts.length === 0 ? (
+              <div className="col-span-full text-center py-20">
+                <Key size={48} className="mx-auto text-slate-300 mb-4" />
+                <p className="text-slate-400 font-medium">등록된 계정이 없습니다</p>
+                <p className="text-slate-300 text-sm mt-2">우측 상단의 '계정 추가' 버튼을 클릭하세요</p>
+              </div>
+            ) : (
+              geosangAccounts.map((account: any) => (
+                <div key={account.id} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all border border-slate-100">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-black text-slate-900 truncate">{account.company_name}</h3>
+                      <p className="text-sm text-slate-500 font-medium mt-1">{account.username}</p>
+                    </div>
+                    <div className="flex gap-1 ml-2">
+                      <button 
+                        onClick={() => { setEditingGeosangAccount(account); setIsGeosangAccountModalOpen(true); }}
+                        className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="수정"
+                      >
+                        <Pencil size={16} className="text-blue-600" />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (confirm('이 계정을 삭제하시겠습니까?')) {
+                            setGeosangAccounts(prev => prev.filter(a => a.id !== account.id));
+                          }
+                        }}
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                        title="삭제"
+                      >
+                        <Trash2 size={16} className="text-red-600" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    {account.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail size={14} className="text-slate-400 flex-shrink-0" />
+                        <span className="text-slate-600 truncate">{account.email}</span>
+                      </div>
+                    )}
+                    {account.address && (
+                      <div className="flex items-center gap-2">
+                        <MapPin size={14} className="text-slate-400 flex-shrink-0" />
+                        <span className="text-slate-600 truncate">{account.address}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Lock size={14} className="text-slate-400 flex-shrink-0" />
+                      <span className="text-slate-400 text-xs">••••••••</span>
+                    </div>
+                    {account.memo && (
+                      <div className="mt-3 pt-3 border-t border-slate-100">
+                        <p className="text-slate-600 text-xs">{account.memo}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
     );
   };
 
@@ -3456,7 +3555,8 @@ const App: React.FC = () => {
             <SidebarItem icon={<Shield size={18} />} label="🔐 계정관리" active={isPasswordManagerView} onClick={() => { setIsPasswordManagerView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
           )}
 
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isPasswordManagerView && !isGeosangAccountView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsGeosangAccountView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Key size={18} />} label="거상 계정 등록" active={isGeosangAccountView} onClick={() => { setIsGeosangAccountView(true); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
           <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
@@ -3508,7 +3608,8 @@ const App: React.FC = () => {
             <SidebarItem icon={<Shield size={18} />} label="🔐 계정관리" active={isPasswordManagerView} onClick={() => { setIsPasswordManagerView(true); setIsLaborClaimView(false); setIsMobileMenuOpen(false); }} />
           )}
 
-          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<ShoppingBag size={18} />} label="매입 거래처" active={activeCategory === CategoryType.PURCHASE && !isLaborClaimView && !isPasswordManagerView && !isGeosangAccountView} onClick={() => { setActiveCategory(CategoryType.PURCHASE); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsGeosangAccountView(false); setIsMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Key size={18} />} label="거상 계정 등록" active={isGeosangAccountView} onClick={() => { setIsGeosangAccountView(true); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <div className="pt-4 pb-1 px-3 text-[10px] font-black text-yellow-400 uppercase tracking-widest opacity-60">Partner Network</div>
           <SidebarItem icon={<Building2 size={18} />} label="프랜차이즈 본사" active={activeCategory === CategoryType.FRANCHISE_HQ && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_HQ); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
           <SidebarItem icon={<Coffee size={18} />} label="프랜차이즈 지점" active={activeCategory === CategoryType.FRANCHISE_BR && !isLaborClaimView && !isPasswordManagerView} onClick={() => { setActiveCategory(CategoryType.FRANCHISE_BR); setIsLaborClaimView(false); setIsPasswordManagerView(false); setIsMobileMenuOpen(false); }} />
@@ -3608,6 +3709,8 @@ const App: React.FC = () => {
 
         {isPasswordManagerView ? (
           <PasswordManager currentUser={currentUser} />
+        ) : isGeosangAccountView ? (
+          <GeosangAccountView />
         ) : isLaborClaimView ? (
           <LaborClaimView 
             claims={laborClaims}
@@ -4061,6 +4164,24 @@ const App: React.FC = () => {
           }}
           initialData={editingClaim}
           outsourceWorkers={contacts.filter(c => c.category === CategoryType.OUTSOURCE)}
+        />
+      )}
+      {isGeosangAccountModalOpen && (
+        <GeosangAccountModal
+          onClose={() => {
+            setIsGeosangAccountModalOpen(false);
+            setEditingGeosangAccount(null);
+          }}
+          onSubmit={(account: any) => {
+            if (editingGeosangAccount) {
+              setGeosangAccounts(prev => prev.map(a => a.id === account.id ? account : a));
+            } else {
+              setGeosangAccounts(prev => [...prev, account]);
+            }
+            setIsGeosangAccountModalOpen(false);
+            setEditingGeosangAccount(null);
+          }}
+          initialData={editingGeosangAccount}
         />
       )}
     </div>
@@ -4637,6 +4758,151 @@ const LaborClaimModal = ({ onClose, onSubmit, initialData, outsourceWorkers }: a
               취소
             </button>
             <button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">
+              {initialData ? '수정' : '등록'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// 거상 계정 등록 모달
+const GeosangAccountModal = ({ onClose, onSubmit, initialData }: any) => {
+  const [formData, setFormData] = useState({
+    id: initialData?.id || 'ga' + Date.now(),
+    company_name: initialData?.company_name || '',
+    email: initialData?.email || '',
+    address: initialData?.address || '',
+    username: initialData?.username || '',
+    password: initialData?.password || '',
+    memo: initialData?.memo || ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.company_name || !formData.username || !formData.password) {
+      alert('거상(회사명), 아이디, 비밀번호는 필수 입력 항목입니다.');
+      return;
+    }
+
+    onSubmit({
+      ...formData,
+      created_at: initialData?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b-2 border-slate-100 p-6 flex justify-between items-center">
+          <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+            <Key className="text-blue-600" size={24} />
+            {initialData ? '계정 수정' : '계정 등록'}
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+            <X size={24} className="text-slate-400" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 거상(회사명) */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-black text-slate-600 mb-2">
+                거상(회사명) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.company_name}
+                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                placeholder="거상컴퍼니"
+                required
+              />
+            </div>
+
+            {/* 이메일 */}
+            <div>
+              <label className="block text-xs font-black text-slate-600 mb-2">이메일</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full p-3 border-2 border-slate-200 rounded-xl font-medium focus:border-blue-500 outline-none"
+                placeholder="example@geosang.com"
+              />
+            </div>
+
+            {/* 주소 */}
+            <div>
+              <label className="block text-xs font-black text-slate-600 mb-2">주소</label>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="w-full p-3 border-2 border-slate-200 rounded-xl font-medium focus:border-blue-500 outline-none"
+                placeholder="부산시 해운대구..."
+              />
+            </div>
+
+            {/* 아이디 */}
+            <div>
+              <label className="block text-xs font-black text-slate-600 mb-2">
+                아이디 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                placeholder="geosang123"
+                required
+              />
+            </div>
+
+            {/* 비밀번호 */}
+            <div>
+              <label className="block text-xs font-black text-slate-600 mb-2">
+                비밀번호 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-500 outline-none"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            {/* 메모 */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-black text-slate-600 mb-2">메모</label>
+              <textarea
+                value={formData.memo}
+                onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+                className="w-full p-3 border-2 border-slate-200 rounded-xl font-medium focus:border-blue-500 outline-none resize-none"
+                placeholder="추가 정보나 메모..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t-2 border-slate-100">
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+            >
+              취소
+            </button>
+            <button 
+              type="submit" 
+              className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors"
+            >
               {initialData ? '수정' : '등록'}
             </button>
           </div>
