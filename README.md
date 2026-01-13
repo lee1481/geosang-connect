@@ -151,7 +151,66 @@ npm run dev:worker
 
 ## 📦 프로덕션 배포
 
-### 1. D1 데이터베이스 생성
+### 🚀 자동 배포 (GitHub Actions)
+
+**main 브랜치에 push하면 자동으로 Cloudflare Pages에 배포됩니다!**
+
+#### GitHub Secrets 설정 (최초 1회만)
+
+1. **GitHub 저장소 접속**: https://github.com/lee1481/geosang-connect
+2. **Settings** → **Secrets and variables** → **Actions** 클릭
+3. **New repository secret** 클릭하여 다음 2개 추가:
+
+| Secret 이름 | 값 | 설명 |
+|-------------|-----|------|
+| `CLOUDFLARE_API_TOKEN` | (Cloudflare API 토큰) | [토큰 생성하기](https://dash.cloudflare.com/profile/api-tokens) |
+| `CLOUDFLARE_ACCOUNT_ID` | `cf68fabab0b28a441384bf980965f412` | Cloudflare 계정 ID |
+
+#### Cloudflare API 토큰 생성 방법
+
+1. https://dash.cloudflare.com/profile/api-tokens 접속
+2. **Create Token** 클릭
+3. **"Edit Cloudflare Workers"** 템플릿 선택
+4. **권한 추가**:
+   - ✅ Account → Cloudflare Pages → Edit
+   - ✅ Account → D1 → Edit
+   - ✅ Account → R2 → Edit
+   - ✅ Account → Account Settings → Read
+   - ✅ Account → Membership → Read
+   - ✅ User → User Details → Read
+5. **Account Resources**: Include - All accounts
+6. **Create Token** → 생성된 토큰 복사
+7. GitHub Secrets에 `CLOUDFLARE_API_TOKEN`으로 저장
+
+#### 자동 배포 워크플로우
+
+```bash
+# 코드 수정 후
+git add .
+git commit -m "feat: 새 기능 추가"
+git push origin main
+
+# ⬇️ 자동으로 실행됩니다:
+# 1. GitHub Actions 트리거
+# 2. Node.js 환경 설정
+# 3. 의존성 설치
+# 4. 프로젝트 빌드
+# 5. Cloudflare Pages 배포
+# 6. 배포 완료! ✅
+```
+
+#### 배포 상태 확인
+
+- **GitHub Actions**: https://github.com/lee1481/geosang-connect/actions
+- 각 커밋마다 자동으로 배포 워크플로우가 실행됩니다
+- 배포 성공 시 ✅ 체크 표시
+- 배포 실패 시 ❌ 에러 표시 및 로그 확인 가능
+
+---
+
+### 🔧 수동 배포 (필요시)
+
+#### 1. D1 데이터베이스 생성
 ```bash
 # 프로덕션 데이터베이스 생성
 npx wrangler d1 create webapp-production
@@ -159,19 +218,19 @@ npx wrangler d1 create webapp-production
 # 출력된 database_id를 wrangler.jsonc에 업데이트
 ```
 
-### 2. 프로덕션 마이그레이션
+#### 2. 프로덕션 마이그레이션
 ```bash
 npm run db:migrate:prod
 ```
 
-### 3. Cloudflare Pages 배포
+#### 3. Cloudflare Pages 배포
 ```bash
 # 빌드 및 배포
 npm run deploy
 
 # 또는 수동 배포
 npm run build
-npx wrangler pages deploy dist --project-name webapp
+npx wrangler pages deploy dist/public --project-name gs-connect
 ```
 
 ## 📁 프로젝트 구조
