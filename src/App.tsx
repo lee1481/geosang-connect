@@ -4817,15 +4817,15 @@ const GeosangAccountModal = ({ onClose, onSubmit, initialData }: any) => {
               />
             </div>
 
-            {/* 계정목록(예.회사메일) */}
+            {/* 계정목록(예)홈페이지 */}
             <div className="md:col-span-2">
-              <label className="block text-xs font-black text-slate-600 mb-2">계정목록(예.회사메일)</label>
+              <label className="block text-xs font-black text-slate-600 mb-2">계정목록(예)홈페이지</label>
               <input
-                type="email"
+                type="text"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full p-3 border-2 border-slate-200 rounded-xl font-medium focus:border-blue-500 outline-none"
-                placeholder="예.회사메일"
+                placeholder="사이트주소"
               />
             </div>
 
