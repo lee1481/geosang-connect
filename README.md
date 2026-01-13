@@ -476,3 +476,6 @@ Private - 거상컴퍼니 전용
 **배포 환경**: Cloudflare Pages (Production)  
 **프로젝트명**: gs-connect  
 **배포 URL**: https://gs-connect.pages.dev
+# GitHub Actions Auto-Deployment Test
+
+✅ 이 라인은 자동 배포 테스트를 위해 추가되었습니다.
