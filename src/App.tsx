@@ -1088,12 +1088,6 @@ const App: React.FC = () => {
                         <span className="text-slate-600 truncate">{account.email}</span>
                       </div>
                     )}
-                    {account.address && (
-                      <div className="flex items-center gap-2">
-                        <MapPin size={14} className="text-slate-400 flex-shrink-0" />
-                        <span className="text-slate-600 truncate">{account.address}</span>
-                      </div>
-                    )}
                     <div className="flex items-center gap-2">
                       <Lock size={14} className="text-slate-400 flex-shrink-0" />
                       <span className="text-slate-400 text-xs">••••••••</span>
@@ -4773,7 +4767,6 @@ const GeosangAccountModal = ({ onClose, onSubmit, initialData }: any) => {
     id: initialData?.id || 'ga' + Date.now(),
     company_name: initialData?.company_name || '',
     email: initialData?.email || '',
-    address: initialData?.address || '',
     username: initialData?.username || '',
     password: initialData?.password || '',
     memo: initialData?.memo || ''
@@ -4783,7 +4776,7 @@ const GeosangAccountModal = ({ onClose, onSubmit, initialData }: any) => {
     e.preventDefault();
     
     if (!formData.company_name || !formData.username || !formData.password) {
-      alert('거상(회사명), 아이디, 비밀번호는 필수 입력 항목입니다.');
+      alert('회사명, 아이디, 비밀번호는 필수 입력 항목입니다.');
       return;
     }
 
@@ -4809,10 +4802,10 @@ const GeosangAccountModal = ({ onClose, onSubmit, initialData }: any) => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 거상(회사명) */}
+            {/* 회사명 */}
             <div className="md:col-span-2">
               <label className="block text-xs font-black text-slate-600 mb-2">
-                거상(회사명) <span className="text-red-500">*</span>
+                회사명 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -4824,27 +4817,15 @@ const GeosangAccountModal = ({ onClose, onSubmit, initialData }: any) => {
               />
             </div>
 
-            {/* 이메일 */}
-            <div>
-              <label className="block text-xs font-black text-slate-600 mb-2">이메일</label>
+            {/* 계정목록(예.회사메일) */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-black text-slate-600 mb-2">계정목록(예.회사메일)</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full p-3 border-2 border-slate-200 rounded-xl font-medium focus:border-blue-500 outline-none"
-                placeholder="example@geosang.com"
-              />
-            </div>
-
-            {/* 주소 */}
-            <div>
-              <label className="block text-xs font-black text-slate-600 mb-2">주소</label>
-              <input
-                type="text"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full p-3 border-2 border-slate-200 rounded-xl font-medium focus:border-blue-500 outline-none"
-                placeholder="부산시 해운대구..."
+                placeholder="예.회사메일"
               />
             </div>
 
