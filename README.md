@@ -15,15 +15,15 @@
 **👉 [거상커넥트 프로덕션](https://gs-connect.pages.dev)**
 
 - **프로덕션 URL**: https://gs-connect.pages.dev
-- **최신 배포 URL**: https://e6965c50.gs-connect.pages.dev
 - **GitHub 저장소**: https://github.com/lee1481/geosang-connect
+- **GitHub Actions**: https://github.com/lee1481/geosang-connect/actions
 - **Cloudflare 계정**: Designsoul2007@gmail.com
 - **프로젝트명**: gs-connect
 
-## 🔐 초기 로그인 정보
+## 🔐 관리자 로그인 정보
 
-- **아이디**: admin
-- **비밀번호**: geosang777
+- **아이디**: gsd2026
+- **비밀번호**: gsd1481
 
 ## 🏗️ 기술 스택
 
@@ -302,13 +302,60 @@ pm2 delete webapp        # 프로세스 삭제
 
 ## 🔧 최근 수정 사항
 
-### 2026-01-11 (최신) - 독립 프로젝트로 재배포 완료 🚀
+### 2026-01-13 (최신) - GitHub Actions 자동 배포 시스템 구축 🚀
+
+#### ✅ CI/CD 자동화 완료
+- **GitHub Actions 워크플로우 구축**
+  - main 브랜치 push 시 자동 배포
+  - 빌드 → 테스트 → Cloudflare Pages 배포 자동화
+  - 배포 상태 실시간 확인 가능
+  
+- **배포 프로세스**
+  1. 코드 수정 및 커밋
+  2. GitHub에 push
+  3. GitHub Actions 자동 실행
+  4. 의존성 설치 (npm ci)
+  5. 프로젝트 빌드 (npm run build)
+  6. Cloudflare Pages 배포
+  7. 배포 완료 (약 1-2분 소요)
+
+- **GitHub Secrets 설정**
+  - `CLOUDFLARE_API_TOKEN`: Cloudflare API 인증
+  - `CLOUDFLARE_ACCOUNT_ID`: 계정 ID
+  
+- **배포 확인**
+  - GitHub Actions: https://github.com/lee1481/geosang-connect/actions
+  - 각 커밋마다 워크플로우 실행 결과 확인 가능
+
+#### ✅ 좌측 네비게이션 메뉴 버그 수정
+- **문제**: 여러 메뉴가 동시에 활성화되는 현상
+- **원인**: "거상 계정 등록" 메뉴 클릭 시 `activeCategory` 초기화 누락
+- **해결**: `setActiveCategory(null)` 추가하여 메뉴 상태 완전 초기화
+- **결과**: ✅ 한 번에 하나의 메뉴만 활성화
+
+#### ✅ 거상 계정 등록 기능 추가
+- **새 메뉴**: "거상 계정 등록" (🔑 아이콘)
+- **위치**: 매입 거래처 아래
+- **기능**:
+  - 회사명 (필수)
+  - 계정목록(예)홈페이지 (선택)
+  - 아이디 (필수)
+  - 비밀번호 (필수)
+  - 메모 (선택)
+- **데이터 저장**: localStorage (`geosang_accounts_v1`)
+- **DB 테이블**: `geosang_accounts` (마이그레이션 0005)
+
+#### ✅ 관리자 계정 정보 업데이트
+- **아이디**: gsd2026
+- **비밀번호**: gsd1481
+- **변경 일시**: 2026-01-13
+
+### 2026-01-11 - 독립 프로젝트로 재배포 완료
 
 #### ✅ 새 Cloudflare Pages 프로젝트 생성 및 배포
 - **새 프로젝트명**: gs-connect
 - **메인 URL**: https://gs-connect.pages.dev
-- **최신 배포 URL**: https://e6965c50.gs-connect.pages.dev
-- **배포 일시**: 2026-01-11 (재배포)
+- **배포 일시**: 2026-01-11
 - **변경 사유**: 
   - 기존 webapp-6m6.pages.dev가 거상시공일정표(gs-mytools)와 중복
   - 독립적인 프로젝트 분리 필요
@@ -317,20 +364,12 @@ pm2 delete webapp        # 프로세스 삭제
 #### ✅ 배포 내역
 - ✅ 외주팀 관리 파일 첨부 기능 (주민등록증, 통장 사본)
 - ✅ DB 마이그레이션 (idCardFile, bankBookFile 컬럼)
-- ✅ 4개 파일 업로드 성공
 - ✅ Worker 번들 컴파일 완료
 - ✅ GitHub 동기화 완료
 
-#### ✅ 기술 스택
-- Frontend: React 18 + TypeScript + TailwindCSS
-- Backend: Hono + Cloudflare Workers
-- Database: Cloudflare D1 (SQLite)
-- Storage: Base64 인코딩 (DB 저장)
-- Platform: Cloudflare Pages
-
 #### ✅ 배포 설정
 - Account ID: cf68fabab0b28a441384bf980965f412
-- Project Name: gs-connect (신규)
+- Project Name: gs-connect
 - Build Output: dist/public
 - Production Branch: main
 
@@ -464,18 +503,31 @@ npm install
 npm run build
 ```
 
-## 📝 라이선스
+## 📝 버전 정보
 
-Private - 거상컴퍼니 전용
-
----
-
-**개발자**: AI Assistant  
-**최종 업데이트**: 2026-01-11  
-**버전**: 1.3.0  
+**최종 업데이트**: 2026-01-13  
+**버전**: 2.0.0  
 **배포 환경**: Cloudflare Pages (Production)  
 **프로젝트명**: gs-connect  
 **배포 URL**: https://gs-connect.pages.dev
+
+---
+
+## 🎯 프로젝트 상태
+
+- ✅ GitHub Actions 자동 배포 시스템 구축
+- ✅ 좌측 네비게이션 메뉴 버그 수정
+- ✅ 거상 계정 등록 기능 추가
+- ✅ 외주팀 파일 첨부 기능 (주민등록증, 통장 사본)
+- ✅ 회사 사업자등록증 관리
+- ✅ 프랜차이즈 본사 입력 오류 해결
+- ✅ 권한 관리 모달 한글 입력 버그 수정
+- ✅ 슬라이드 네비게이션 바 추가
+
+---
+
+**개발자**: AI Assistant + 사인마스터  
+**라이선스**: Private - 거상컴퍼니 전용
 # GitHub Actions Auto-Deployment Test
 
 ✅ 이 라인은 자동 배포 테스트를 위해 추가되었습니다.
