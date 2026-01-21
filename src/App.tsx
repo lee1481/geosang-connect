@@ -928,21 +928,6 @@ const App: React.FC = () => {
             )}
           </div>
           <div className="flex gap-0.5 ml-2">
-            {contact.licenseFile && (
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const link = document.createElement('a');
-                  link.href = `data:${contact.licenseFile.mimeType};base64,${contact.licenseFile.data}`;
-                  link.download = contact.licenseFile.name;
-                  link.click();
-                }}
-                className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-lg transition-colors"
-                title="사업자등록증 다운로드"
-              >
-                <FileText size={16} />
-              </button>
-            )}
             {contact.attachments && contact.attachments.length > 0 && (
               <div className="relative group/attach">
                 <button 
