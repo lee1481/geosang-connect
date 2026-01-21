@@ -964,15 +964,17 @@ const App: React.FC = () => {
                 </div>
               </div>
             )}
-            {canManage && (
-              <div className="flex gap-1">
-                <button 
-                  onClick={onEdit} 
-                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white transition-all duration-200 hover:scale-110"
-                  title="수정"
-                >
-                  <Pencil size={16} />
-                </button>
+            <div className="flex gap-1">
+              {/* 수정 버튼 - 모든 사용자 */}
+              <button 
+                onClick={onEdit} 
+                className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white transition-all duration-200 hover:scale-110"
+                title="수정"
+              >
+                <Pencil size={16} />
+              </button>
+              {/* 삭제 버튼 - 관리자만 */}
+              {canManage && (
                 <button 
                   onClick={onDelete} 
                   className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-red-600 hover:text-white transition-all duration-200 hover:scale-110"
@@ -980,8 +982,8 @@ const App: React.FC = () => {
                 >
                   <Trash2 size={16} />
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
         <div className="space-y-3 lg:space-y-4">
