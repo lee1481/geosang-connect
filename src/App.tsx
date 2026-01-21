@@ -3711,8 +3711,50 @@ const App: React.FC = () => {
             outsourceWorkers={contacts.filter(c => c.category === CategoryType.OUTSOURCE)}
             onAddClaim={() => { setEditingClaim(null); setIsLaborClaimModalOpen(true); }}
             onEditClaim={(claim) => { setEditingClaim(claim); setIsLaborClaimModalOpen(true); }}
-            onDeleteClaim={(id) => { if(confirm('삭제하시겠습니까?')) setLaborClaims(prev => prev.filter(c => c.id !== id)); }}
-            onUpdateStatus={(id, status) => setLaborClaims(prev => prev.map(c => c.id === id ? { ...c, status, ...(status === 'approved' ? { approvedBy: currentUser.name, approvedAt: new Date().toISOString() } : status === 'paid' ? { paidAt: new Date().toISOString() } : {}) } : c))}
+            onDeleteClaim={async (id) => {
+              if(confirm('삭제하시겠습니까?')) {
+                // 낙관적 UI 업데이트
+                setLaborClaims(prev => prev.filter(c => c.id !== id));
+                
+                // 백엔드 API 호출하여 D1 데이터베이스에서 삭제
+                const result = await laborClaimsAPI.delete(id);
+                
+                if (!result.success) {
+                  console.error('❌ 삭제 실패:', result.error);
+                  alert('삭제에 실패했습니다. 다시 시도해주세요.');
+                  // 실패 시 데이터 다시 로드
+                  loadData();
+                } else {
+                  console.log('✅ 성공적으로 삭제되었습니다.');
+                }
+              }
+            }}
+            onUpdateStatus={async (id, status) => {
+              // 낙관적 UI 업데이트
+              setLaborClaims(prev => prev.map(c => c.id === id ? { ...c, status, ...(status === 'approved' ? { approvedBy: currentUser.name, approvedAt: new Date().toISOString() } : status === 'paid' ? { paidAt: new Date().toISOString() } : {}) } : c));
+              
+              // 백엔드 API 호출하여 D1 데이터베이스에 저장
+              const claim = laborClaims.find(c => c.id === id);
+              if (claim) {
+                const updatedClaim = {
+                  ...claim,
+                  status,
+                  ...(status === 'approved' ? { approvedBy: currentUser.name, approvedAt: new Date().toISOString() } : {}),
+                  ...(status === 'paid' ? { paidAt: new Date().toISOString() } : {})
+                };
+                
+                const result = await laborClaimsAPI.update(id, updatedClaim);
+                
+                if (!result.success) {
+                  console.error('❌ 상태 업데이트 실패:', result.error);
+                  alert('상태 업데이트에 실패했습니다. 다시 시도해주세요.');
+                  // 실패 시 데이터 다시 로드
+                  loadData();
+                } else {
+                  console.log('✅ 상태가 성공적으로 저장되었습니다.');
+                }
+              }
+            }}
           />
         ) : (
           <section className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-10 scroll-smooth">
