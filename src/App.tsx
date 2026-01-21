@@ -2296,6 +2296,10 @@ const App: React.FC = () => {
     const [companyLicensePreview, setCompanyLicensePreview] = useState<string | null>(null);
     const [isUploadingCompanyLicense, setIsUploadingCompanyLicense] = useState(false);
     
+    // 추가 서류 업로드 상태 (파트너 네트워크 카테고리용)
+    const additionalFilesInputRef = useRef<HTMLInputElement>(null);
+    const [isUploadingAdditional, setIsUploadingAdditional] = useState(false);
+    
     // 슬라이드 네비게이션 바 상태 관리
     const [staffScrollThumbTop, setStaffScrollThumbTop] = useState(0);
 
@@ -2373,7 +2377,7 @@ const App: React.FC = () => {
 
     const [formData, setFormData] = useState<Partial<Contact>>(() => {
       if (initialData) {
-        return { ...initialData };
+        return { ...initialData, attachments: initialData.attachments || [] };
       }
       
       // 프랜차이즈 본사는 localStorage 사용 안 함 - 완전히 빈 폼으로 시작
@@ -2390,6 +2394,7 @@ const App: React.FC = () => {
           homepage: '',
           bankAccount: '',
           subCategory: '',
+          attachments: [],
           staffList: [{ 
             id: 's' + Date.now(), 
             name: '', 
@@ -2420,6 +2425,7 @@ const App: React.FC = () => {
           homepage: '',
           bankAccount: '',
           subCategory: '시공일당',
+          attachments: [],
           staffList: [{ 
             id: 's' + Date.now(), 
             name: '', 
@@ -2449,6 +2455,7 @@ const App: React.FC = () => {
         homepage: companyInfo?.homepage || '',
         bankAccount: companyInfo?.bankAccount || '',
         subCategory: '',
+        attachments: [],
         staffList: [{ 
           id: 's' + Date.now(), 
           name: '', 
@@ -3415,6 +3422,193 @@ const App: React.FC = () => {
                   <div className="col-span-1"><label className={labelClasses}>이메일</label><input className={inputClasses} value={formData.email} onChange={e => setFormData(prev => ({...prev, email: e.target.value}))} disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
                   <div className="col-span-1"><label className={labelClasses}>홈페이지 주소</label><input className={inputClasses} value={formData.homepage} onChange={e => setFormData(prev => ({...prev, homepage: e.target.value}))} disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
                   <div className="lg:col-span-2"><label className={labelClasses}>계좌번호</label><input className={inputClasses} value={formData.bankAccount} onChange={e => setFormData(prev => ({...prev, bankAccount: e.target.value}))} placeholder="은행명 계좌번호 예금주" disabled={isFranchiseHQ ? false : ((isGeosang || isPartnerNetwork) && !isEditingCompanyInfo)} /></div> {/* UPDATED */}
+                </div>
+              </div>
+            )}
+            
+            {/* 추가 서류 업로드 (파트너 네트워크 카테고리 전용) */}
+            {isPartnerNetwork && (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 lg:p-8 rounded-3xl border-2 border-blue-200">
+                <label className="block text-sm lg:text-base font-black text-blue-700 mb-4 flex items-center gap-2">
+                  <FileText size={20} className="text-blue-600" />
+                  📎 추가 서류 (통장사본, 명함 등)
+                </label>
+                <div className="space-y-4">
+                  <input
+                    ref={additionalFilesInputRef}
+                    type="file"
+                    accept="image/*,.pdf"
+                    multiple
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length === 0) return;
+                      
+                      // 파일 크기 체크 (각 10MB)
+                      const oversized = files.find(f => f.size > 10 * 1024 * 1024);
+                      if (oversized) {
+                        alert('❌ 각 파일 크기는 10MB 이하여야 합니다.');
+                        return;
+                      }
+                      
+                      setIsUploadingAdditional(true);
+                      
+                      try {
+                        const newAttachments = await Promise.all(
+                          files.map(file => {
+                            return new Promise<any>((resolve) => {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const base64 = (event.target?.result as string).split(',')[1];
+                                resolve({
+                                  data: base64,
+                                  name: file.name,
+                                  mimeType: file.type,
+                                  size: file.size
+                                });
+                              };
+                              reader.readAsDataURL(file);
+                            });
+                          })
+                        );
+                        
+                        setFormData({
+                          ...formData,
+                          attachments: [...(formData.attachments || []), ...newAttachments]
+                        });
+                      } catch (error) {
+                        console.error('파일 업로드 오류:', error);
+                        alert('❌ 파일 업로드 중 오류가 발생했습니다.');
+                      } finally {
+                        setIsUploadingAdditional(false);
+                        if (additionalFilesInputRef.current) {
+                          additionalFilesInputRef.current.value = '';
+                        }
+                      }
+                    }}
+                  />
+                  
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => additionalFilesInputRef.current?.click()}
+                      disabled={isUploadingAdditional}
+                      className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isUploadingAdditional ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          업로드 중...
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={18} />
+                          파일 추가 (여러 개 선택 가능)
+                        </>
+                      )}
+                    </button>
+                    
+                    {formData.attachments && formData.attachments.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, attachments: [] });
+                        }}
+                        className="bg-red-100 text-red-600 px-4 py-3 rounded-xl font-bold text-sm hover:bg-red-200 transition-all flex items-center gap-2"
+                      >
+                        <Trash2 size={18} />
+                        전체 삭제
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* 첨부파일 목록 */}
+                  {formData.attachments && formData.attachments.length > 0 && (
+                    <div className="bg-white rounded-xl p-4 border-2 border-blue-200 space-y-2">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <FileText size={20} className="text-blue-600" />
+                          <p className="text-sm font-bold text-slate-900">
+                            첨부파일 {formData.attachments.length}개
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {formData.attachments.map((file: any, idx: number) => (
+                          <div 
+                            key={idx} 
+                            className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden"
+                          >
+                            {/* 파일 정보 헤더 */}
+                            <div className="flex items-center justify-between p-3 bg-white border-b border-slate-200">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <FileText size={16} className="text-blue-600 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-slate-900 truncate">{file.name}</p>
+                                  <p className="text-[10px] text-slate-500">
+                                    {(file.size / 1024).toFixed(1)} KB
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const link = document.createElement('a');
+                                    link.href = `data:${file.mimeType};base64,${file.data}`;
+                                    link.download = file.name;
+                                    link.click();
+                                  }}
+                                  className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="다운로드"
+                                >
+                                  <Download size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newAttachments = formData.attachments.filter((_: any, i: number) => i !== idx);
+                                    setFormData({ ...formData, attachments: newAttachments });
+                                  }}
+                                  className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="삭제"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {/* 이미지 미리보기 */}
+                            {file.mimeType && file.mimeType.startsWith('image/') && file.data && (
+                              <div className="p-3">
+                                <img 
+                                  src={`data:${file.mimeType};base64,${file.data}`}
+                                  alt={file.name}
+                                  className="w-full rounded-lg border border-slate-200 max-h-64 object-contain bg-slate-50"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* PDF 파일 아이콘 */}
+                            {file.mimeType && file.mimeType === 'application/pdf' && (
+                              <div className="p-3 flex items-center justify-center bg-slate-50">
+                                <div className="text-center">
+                                  <FileText size={48} className="text-red-500 mx-auto mb-2" />
+                                  <p className="text-xs text-slate-600 font-medium">PDF 문서</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-slate-500 mt-2">
+                    * 통장사본, 명함, 계약서 등 추가 서류를 첨부할 수 있습니다 (각 최대 10MB)
+                  </p>
                 </div>
               </div>
             )}
