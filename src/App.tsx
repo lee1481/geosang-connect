@@ -2129,48 +2129,72 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
                       {formData.attachments.map((file: any, idx: number) => (
                         <div 
                           key={idx} 
-                          className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors"
+                          className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden"
                         >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <FileText size={16} className="text-blue-600 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-slate-900 truncate">{file.name}</p>
-                              <p className="text-[10px] text-slate-500">
-                                {(file.size / 1024).toFixed(1)} KB
-                              </p>
+                          {/* 파일 정보 헤더 */}
+                          <div className="flex items-center justify-between p-3 bg-white border-b border-slate-200">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <FileText size={16} className="text-blue-600 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-slate-900 truncate">{file.name}</p>
+                                <p className="text-[10px] text-slate-500">
+                                  {(file.size / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = `data:${file.mimeType};base64,${file.data}`;
+                                  link.download = file.name;
+                                  link.click();
+                                }}
+                                className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="다운로드"
+                              >
+                                <Download size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newAttachments = formData.attachments.filter((_: any, i: number) => i !== idx);
+                                  setFormData({ ...formData, attachments: newAttachments });
+                                }}
+                                className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                title="삭제"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const link = document.createElement('a');
-                                link.href = `data:${file.mimeType};base64,${file.data}`;
-                                link.download = file.name;
-                                link.click();
-                              }}
-                              className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="다운로드"
-                            >
-                              <Download size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newAttachments = formData.attachments.filter((_: any, i: number) => i !== idx);
-                                setFormData({ ...formData, attachments: newAttachments });
-                              }}
-                              className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                              title="삭제"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
+                          {/* 이미지 미리보기 */}
+                          {file.mimeType && file.mimeType.startsWith('image/') && file.data && (
+                            <div className="p-3">
+                              <img 
+                                src={`data:${file.mimeType};base64,${file.data}`}
+                                alt={file.name}
+                                className="w-full rounded-lg border border-slate-200 max-h-64 object-contain bg-slate-50"
+                              />
+                            </div>
+                          )}
+                          
+                          {/* PDF 파일 아이콘 */}
+                          {file.mimeType && file.mimeType === 'application/pdf' && (
+                            <div className="p-3 flex items-center justify-center bg-slate-50">
+                              <div className="text-center">
+                                <FileText size={48} className="text-red-500 mx-auto mb-2" />
+                                <p className="text-xs text-slate-600 font-medium">PDF 문서</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
