@@ -1619,6 +1619,15 @@ const App: React.FC = () => {
     // 슬라이드 네비게이션 바 상태 관리 (회사 등록 모달용)
     const [companyScrollThumbTop, setCompanyScrollThumbTop] = useState(0);
 
+    // initialData가 있을 때 기존 파일 미리보기 설정
+    useEffect(() => {
+      if (initialData?.licenseFile) {
+        // 사업자등록증 미리보기 설정
+        const preview = `data:${initialData.licenseFile.mimeType};base64,${initialData.licenseFile.data}`;
+        setLicensePreview(preview);
+      }
+    }, [initialData]);
+
     // 스크롤 이벤트 리스너 (회사 등록 모달용)
     useEffect(() => {
       const modal = document.getElementById('company-form-modal');
@@ -1985,36 +1994,54 @@ const App: React.FC = () => {
                 </div>
                 
                 {/* 미리보기 */}
-                {(licensePreview || (initialData?.licenseFile && !licensePreview)) && (
+                {licensePreview && (
                   <div className="bg-white rounded-xl p-4 border-2 border-emerald-200">
                     <div className="flex items-center gap-3 mb-3">
                       <FileText size={20} className="text-emerald-600" />
                       <div className="flex-1">
                         <p className="text-sm font-bold text-slate-900">사업자등록증</p>
-                        <p className="text-xs text-slate-500">{formData.licenseFile?.name || '기존 파일'}</p>
+                        <p className="text-xs text-slate-500">{formData.licenseFile?.name || initialData?.licenseFile?.name || '파일'}</p>
                       </div>
-                      {formData.licenseFile && (
+                      {(formData.licenseFile || initialData?.licenseFile) && (
                         <button
                           type="button"
                           onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = `data:${formData.licenseFile.mimeType};base64,${formData.licenseFile.data}`;
-                            link.download = formData.licenseFile.name;
-                            link.click();
+                            const file = formData.licenseFile || initialData?.licenseFile;
+                            if (file) {
+                              const link = document.createElement('a');
+                              link.href = `data:${file.mimeType};base64,${file.data}`;
+                              link.download = file.name;
+                              link.click();
+                            }
                           }}
-                          className="text-blue-600 hover:text-blue-700 p-2"
+                          className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
                           title="다운로드"
                         >
                           <Download size={18} />
                         </button>
                       )}
                     </div>
-                    {licensePreview && (
+                    {licensePreview && formData.licenseFile?.mimeType?.startsWith('image/') && (
                       <img 
                         src={licensePreview} 
                         alt="사업자등록증 미리보기" 
-                        className="w-full rounded-lg border border-slate-200"
+                        className="w-full rounded-lg border border-slate-200 max-h-64 object-contain bg-slate-50"
                       />
+                    )}
+                    {licensePreview && !formData.licenseFile?.mimeType?.startsWith('image/') && initialData?.licenseFile?.mimeType?.startsWith('image/') && (
+                      <img 
+                        src={licensePreview} 
+                        alt="사업자등록증 미리보기" 
+                        className="w-full rounded-lg border border-slate-200 max-h-64 object-contain bg-slate-50"
+                      />
+                    )}
+                    {formData.licenseFile?.mimeType === 'application/pdf' && (
+                      <div className="p-3 flex items-center justify-center bg-slate-50">
+                        <div className="text-center">
+                          <FileText size={48} className="text-red-500 mx-auto mb-2" />
+                          <p className="text-xs text-slate-600 font-medium">PDF 문서</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
