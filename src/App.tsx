@@ -32,6 +32,91 @@ const INITIAL_AUTH_USERS: AuthUser[] = [
   { id: 'admin', name: '마스터 관리자', username: 'admin', password: 'geosang777' }
 ];
 
+// 🖼️ 이미지 압축 유틸리티
+const compressImage = async (file: File, maxWidth: number = 1920, quality: number = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // 이미지 리사이징 (maxWidth 기준)
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context not available'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // WebP 포맷으로 압축 (지원하지 않으면 JPEG)
+        const mimeType = canvas.toDataURL('image/webp').startsWith('data:image/webp') 
+          ? 'image/webp' 
+          : 'image/jpeg';
+
+        const compressedDataUrl = canvas.toDataURL(mimeType, quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = () => {
+        reject(new Error('Image load failed'));
+      };
+    };
+    reader.onerror = () => {
+      reject(new Error('File read failed'));
+    };
+  });
+};
+
+// 파일을 압축하고 Base64 데이터 반환
+const compressAndEncodeFile = async (file: File): Promise<{ data: string; name: string; mimeType: string; originalSize: number; compressedSize: number }> => {
+  // PDF는 압축하지 않음
+  if (file.type === 'application/pdf') {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = (event.target?.result as string).split(',')[1];
+        resolve({
+          data: base64,
+          name: file.name,
+          mimeType: file.type,
+          originalSize: file.size,
+          compressedSize: file.size
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // 이미지 압축 (1920px, 80% 품질)
+  const compressedDataUrl = await compressImage(file, 1920, 0.8);
+  const base64 = compressedDataUrl.split(',')[1];
+  const mimeType = compressedDataUrl.split(';')[0].split(':')[1];
+  
+  // 압축된 크기 계산 (Base64는 실제 크기의 약 75%)
+  const compressedSize = Math.ceil(base64.length * 0.75);
+  
+  return {
+    data: base64,
+    name: file.name,
+    mimeType: mimeType,
+    originalSize: file.size,
+    compressedSize: compressedSize
+  };
+};
+
 // 🔧 API 함수
 const contactsAPI = {
   async create(contact: Contact) {
@@ -1925,27 +2010,25 @@ const App: React.FC = () => {
                     setIsUploadingLicense(true);
                     
                     try {
-                      // 미리보기 생성
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        setLicensePreview(event.target?.result as string);
-                      };
-                      reader.readAsDataURL(file);
+                      // 이미지 압축 및 인코딩
+                      const compressed = await compressAndEncodeFile(file);
                       
-                      // Base64로 변환하여 formData에 저장
-                      const base64Reader = new FileReader();
-                      base64Reader.onload = (event) => {
-                        const base64 = (event.target?.result as string).split(',')[1];
-                        setFormData({
-                          ...formData,
-                          licenseFile: {
-                            data: base64,
-                            name: file.name,
-                            mimeType: file.type
-                          }
-                        });
-                      };
-                      base64Reader.readAsDataURL(file);
+                      // 압축 결과 로그
+                      const compressionRatio = ((1 - compressed.compressedSize / compressed.originalSize) * 100).toFixed(1);
+                      console.log(`✅ 이미지 압축 완료: ${(compressed.originalSize / 1024 / 1024).toFixed(2)}MB → ${(compressed.compressedSize / 1024 / 1024).toFixed(2)}MB (${compressionRatio}% 감소)`);
+                      
+                      // 미리보기 생성
+                      const previewUrl = `data:${compressed.mimeType};base64,${compressed.data}`;
+                      setLicensePreview(previewUrl);
+                      
+                      setFormData({
+                        ...formData,
+                        licenseFile: {
+                          data: compressed.data,
+                          name: compressed.name,
+                          mimeType: compressed.mimeType
+                        }
+                      });
                     } catch (error) {
                       console.error('파일 업로드 오류:', error);
                       alert('❌ 파일 업로드 중 오류가 발생했습니다.');
@@ -2077,20 +2160,17 @@ const App: React.FC = () => {
                     
                     try {
                       const newAttachments = await Promise.all(
-                        files.map(file => {
-                          return new Promise<any>((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              const base64 = (event.target?.result as string).split(',')[1];
-                              resolve({
-                                data: base64,
-                                name: file.name,
-                                mimeType: file.type,
-                                size: file.size
-                              });
-                            };
-                            reader.readAsDataURL(file);
-                          });
+                        files.map(async (file) => {
+                          const compressed = await compressAndEncodeFile(file);
+                          const compressionRatio = ((1 - compressed.compressedSize / compressed.originalSize) * 100).toFixed(1);
+                          console.log(`✅ ${file.name} 압축: ${(compressed.originalSize / 1024).toFixed(1)}KB → ${(compressed.compressedSize / 1024).toFixed(1)}KB (${compressionRatio}% 감소)`);
+                          
+                          return {
+                            data: compressed.data,
+                            name: compressed.name,
+                            mimeType: compressed.mimeType,
+                            size: compressed.compressedSize
+                          };
                         })
                       );
                       
@@ -2977,25 +3057,25 @@ const App: React.FC = () => {
                             setIsUploadingCompanyLicense(true);
                             
                             try {
-                              const reader = new FileReader();
-                              reader.onload = (event) => {
-                                setCompanyLicensePreview(event.target?.result as string);
-                              };
-                              reader.readAsDataURL(file);
+                              // 이미지 압축 및 인코딩
+                              const compressed = await compressAndEncodeFile(file);
                               
-                              const base64Reader = new FileReader();
-                              base64Reader.onload = (event) => {
-                                const base64 = (event.target?.result as string).split(',')[1];
-                                setFormData(prev => ({
-                                  ...prev,
-                                  licenseFile: {
-                                    data: base64,
-                                    name: file.name,
-                                    mimeType: file.type
-                                  }
-                                }));
-                              };
-                              base64Reader.readAsDataURL(file);
+                              // 압축 결과 로그
+                              const compressionRatio = ((1 - compressed.compressedSize / compressed.originalSize) * 100).toFixed(1);
+                              console.log(`✅ 이미지 압축 완료: ${(compressed.originalSize / 1024 / 1024).toFixed(2)}MB → ${(compressed.compressedSize / 1024 / 1024).toFixed(2)}MB (${compressionRatio}% 감소)`);
+                              
+                              // 미리보기 생성
+                              const previewUrl = `data:${compressed.mimeType};base64,${compressed.data}`;
+                              setCompanyLicensePreview(previewUrl);
+                              
+                              setFormData(prev => ({
+                                ...prev,
+                                licenseFile: {
+                                  data: compressed.data,
+                                  name: compressed.name,
+                                  mimeType: compressed.mimeType
+                                }
+                              }));
                             } catch (error) {
                               console.error('파일 업로드 오류:', error);
                               alert('❌ 파일 업로드 중 오류가 발생했습니다.');
@@ -3255,17 +3335,21 @@ const App: React.FC = () => {
                             return;
                           }
                           
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const base64 = (event.target?.result as string).split(',')[1];
+                          try {
+                            const compressed = await compressAndEncodeFile(file);
+                            const compressionRatio = ((1 - compressed.compressedSize / compressed.originalSize) * 100).toFixed(1);
+                            console.log(`✅ 주민등록증 압축: ${(compressed.originalSize / 1024).toFixed(1)}KB → ${(compressed.compressedSize / 1024).toFixed(1)}KB (${compressionRatio}% 감소)`);
+                            
                             handleStaffChange(0, 'idCardFile', {
-                              data: base64,
-                              name: file.name,
-                              mimeType: file.type,
-                              size: file.size
+                              data: compressed.data,
+                              name: compressed.name,
+                              mimeType: compressed.mimeType,
+                              size: compressed.compressedSize
                             });
-                          };
-                          reader.readAsDataURL(file);
+                          } catch (error) {
+                            console.error('파일 업로드 오류:', error);
+                            alert('❌ 파일 업로드 중 오류가 발생했습니다.');
+                          }
                         }}
                       />
                       
@@ -3351,17 +3435,21 @@ const App: React.FC = () => {
                             return;
                           }
                           
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const base64 = (event.target?.result as string).split(',')[1];
+                          try {
+                            const compressed = await compressAndEncodeFile(file);
+                            const compressionRatio = ((1 - compressed.compressedSize / compressed.originalSize) * 100).toFixed(1);
+                            console.log(`✅ 통장사본 압축: ${(compressed.originalSize / 1024).toFixed(1)}KB → ${(compressed.compressedSize / 1024).toFixed(1)}KB (${compressionRatio}% 감소)`);
+                            
                             handleStaffChange(0, 'bankBookFile', {
-                              data: base64,
-                              name: file.name,
-                              mimeType: file.type,
-                              size: file.size
+                              data: compressed.data,
+                              name: compressed.name,
+                              mimeType: compressed.mimeType,
+                              size: compressed.compressedSize
                             });
-                          };
-                          reader.readAsDataURL(file);
+                          } catch (error) {
+                            console.error('파일 업로드 오류:', error);
+                            alert('❌ 파일 업로드 중 오류가 발생했습니다.');
+                          }
                         }}
                       />
                       
@@ -3485,25 +3573,25 @@ const App: React.FC = () => {
                     setIsUploadingCompanyLicense(true);
                     
                     try {
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        setCompanyLicensePreview(event.target?.result as string);
-                      };
-                      reader.readAsDataURL(file);
+                      // 이미지 압축 및 인코딩
+                      const compressed = await compressAndEncodeFile(file);
                       
-                      const base64Reader = new FileReader();
-                      base64Reader.onload = (event) => {
-                        const base64 = (event.target?.result as string).split(',')[1];
-                        setFormData(prev => ({
-                          ...prev,
-                          licenseFile: {
-                            data: base64,
-                            name: file.name,
-                            mimeType: file.type
-                          }
-                        }));
-                      };
-                      base64Reader.readAsDataURL(file);
+                      // 압축 결과 로그
+                      const compressionRatio = ((1 - compressed.compressedSize / compressed.originalSize) * 100).toFixed(1);
+                      console.log(`✅ 이미지 압축 완료: ${(compressed.originalSize / 1024 / 1024).toFixed(2)}MB → ${(compressed.compressedSize / 1024 / 1024).toFixed(2)}MB (${compressionRatio}% 감소)`);
+                      
+                      // 미리보기 생성
+                      const previewUrl = `data:${compressed.mimeType};base64,${compressed.data}`;
+                      setCompanyLicensePreview(previewUrl);
+                      
+                      setFormData(prev => ({
+                        ...prev,
+                        licenseFile: {
+                          data: compressed.data,
+                          name: compressed.name,
+                          mimeType: compressed.mimeType
+                        }
+                      }));
                     } catch (error) {
                       console.error('파일 업로드 오류:', error);
                       alert('❌ 파일 업로드 중 오류가 발생했습니다.');
@@ -3639,20 +3727,17 @@ const App: React.FC = () => {
                       
                       try {
                         const newAttachments = await Promise.all(
-                          files.map(file => {
-                            return new Promise<any>((resolve) => {
-                              const reader = new FileReader();
-                              reader.onload = (event) => {
-                                const base64 = (event.target?.result as string).split(',')[1];
-                                resolve({
-                                  data: base64,
-                                  name: file.name,
-                                  mimeType: file.type,
-                                  size: file.size
-                                });
-                              };
-                              reader.readAsDataURL(file);
-                            });
+                          files.map(async (file) => {
+                            const compressed = await compressAndEncodeFile(file);
+                            const compressionRatio = ((1 - compressed.compressedSize / compressed.originalSize) * 100).toFixed(1);
+                            console.log(`✅ ${file.name} 압축: ${(compressed.originalSize / 1024).toFixed(1)}KB → ${(compressed.compressedSize / 1024).toFixed(1)}KB (${compressionRatio}% 감소)`);
+                            
+                            return {
+                              data: compressed.data,
+                              name: compressed.name,
+                              mimeType: compressed.mimeType,
+                              size: compressed.compressedSize
+                            };
                           })
                         );
                         
