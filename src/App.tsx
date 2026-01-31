@@ -3882,6 +3882,91 @@ const App: React.FC = () => {
               </div>
             )}
             
+            {/* 직원 정보 섹션 - 파트너 네트워크 카테고리 전용 */}
+            {isPartnerNetwork && (
+              <div id="staff-info-section" className="border-t-2 border-slate-200 pt-6 lg:pt-8 scroll-mt-20">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg lg:text-xl font-black text-slate-900 flex items-center gap-2">
+                    <Users size={24} className="text-blue-600" />
+                    직원 정보
+                  </h3>
+                  <button 
+                    type="button" 
+                    onClick={addStaff} 
+                    className="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"
+                  >
+                    <Plus size={16}/> 인원 추가
+                  </button>
+                </div>
+
+                {/* 직원 카드 리스트 */}
+                <div className="space-y-4">
+                  {formData.staffList?.map((staff, idx) => (
+                    <div key={idx} className="bg-gradient-to-br from-slate-50 to-gray-50 p-6 lg:p-8 rounded-2xl border-2 border-slate-200 shadow-sm relative">
+                      {formData.staffList!.length > 1 && (
+                        <button 
+                          type="button" 
+                          onClick={() => removeStaff(idx)} 
+                          className="absolute top-4 right-4 p-2 bg-red-100 text-red-600 hover:bg-red-600 hover:text-white rounded-full transition-all"
+                          title="삭제"
+                        >
+                          <Trash2 size={18}/>
+                        </button>
+                      )}
+                      
+                      {/* 부서 선택 */}
+                      <div className="mb-6">
+                        <label className={labelClasses}>부서 구분 *</label>
+                        {renderItemManagement(geosangDepartments, 'GEOSANG_DEPT', idx)}
+                      </div>
+
+                      {/* 직원 기본 정보 */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="col-span-1">
+                          <label className={labelClasses}>이름 *</label>
+                          <input 
+                            className={inputClasses} 
+                            value={staff.name || ''} 
+                            onChange={e => handleStaffChange(idx, 'name', e.target.value)} 
+                            placeholder="이름을 입력하세요"
+                            required 
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <label className={labelClasses}>직함</label>
+                          <input 
+                            className={inputClasses} 
+                            value={staff.position || ''} 
+                            onChange={e => handleStaffChange(idx, 'position', e.target.value)} 
+                            placeholder="직함을 입력하세요"
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <label className={labelClasses}>이메일</label>
+                          <input 
+                            className={inputClasses} 
+                            value={staff.email || ''} 
+                            onChange={e => handleStaffChange(idx, 'email', e.target.value)} 
+                            placeholder="example@company.com"
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <label className={labelClasses}>핸드폰번호 *</label>
+                          <input 
+                            className={inputClasses} 
+                            value={staff.phone || ''} 
+                            onChange={e => handleStaffChange(idx, 'phone', e.target.value)} 
+                            placeholder="010-1234-5678"
+                            required 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             <button type="submit" className="w-full bg-blue-600 text-white py-4 lg:py-5 rounded-2xl lg:rounded-[1.5rem] font-black text-sm lg:text-lg shadow-xl hover:bg-blue-700 transition-all sticky bottom-0 z-10">저장하기</button>
           </form>
         </div>
