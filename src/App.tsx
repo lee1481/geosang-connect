@@ -5389,8 +5389,8 @@ const GeosangAccountModal = ({ onClose, onSubmit, initialData }: any) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl shadow-2xl w-full max-w-2xl my-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
         <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b-2 border-slate-100 p-6 flex justify-between items-center">
           <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
             <Key className="text-blue-600" size={24} />
