@@ -508,7 +508,7 @@ const App: React.FC = () => {
   // 단, 모달이 열려 있을 때는 새로고침하지 않음
   useEffect(() => {
     const handleFocus = () => {
-      if (!isModalOpen && !isLaborClaimModalOpen && !isCompanyModalOpen && !isStaffModalOpen) {
+      if (!isModalOpen && !isLaborClaimModalOpen && !isCompanyModalOpen && !isStaffModalOpen && !workerDetailModal) {
         console.log('👁️ 윈도우 포커스 감지 - 데이터 새로고침');
         loadData();
       }
@@ -519,13 +519,13 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, [isModalOpen, isLaborClaimModalOpen, isCompanyModalOpen, isStaffModalOpen]);
+  }, [isModalOpen, isLaborClaimModalOpen, isCompanyModalOpen, isStaffModalOpen, workerDetailModal]);
 
   // 실시간 동기화: 30초마다 자동 새로고침 (성능 최적화)
   // 단, 모달이 열려 있을 때는 새로고침하지 않음
   useEffect(() => {
     const syncInterval = setInterval(() => {
-      if (!isModalOpen && !isLaborClaimModalOpen && !isCompanyModalOpen && !isStaffModalOpen) {
+      if (!isModalOpen && !isLaborClaimModalOpen && !isCompanyModalOpen && !isStaffModalOpen && !workerDetailModal) {
         console.log('🔄 실시간 동기화: 30초 자동 새로고침');
         loadData();
       }
@@ -534,7 +534,7 @@ const App: React.FC = () => {
     return () => {
       clearInterval(syncInterval);
     };
-  }, [isModalOpen, isLaborClaimModalOpen, isCompanyModalOpen, isStaffModalOpen]); // 모달 상태 변경 시 interval 재설정
+  }, [isModalOpen, isLaborClaimModalOpen, isCompanyModalOpen, isStaffModalOpen, workerDetailModal]); // 모달 상태 변경 시 interval 재설정
 
   useEffect(() => {
     localStorage.setItem('geosang_projects_v1', JSON.stringify(projects));
